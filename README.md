@@ -150,6 +150,26 @@ const result = books
     |> filter.call(?, x => x.category === "programming");
 ```
 
+An efficient implementation can statically determine that a pipe into a partially applied function 
+could be reduced into fewer steps:
+
+```js
+const res = a |> f(?, 1) |> g(?, 2);
+```
+
+is approximately identical to:
+
+```js
+const res = g(f(a, 1), 2);
+```
+
+though a more accurate conversion would be:
+
+```js
+let _temp;
+const (_temp = a, _temp = f(_temp, 1), g(_temp, 2));
+```
+
 # Parsing
 
 While this proposal leverages the existing `?` token used in conditional expressions, it does not 
