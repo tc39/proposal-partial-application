@@ -123,14 +123,11 @@ semantic rules:
   };
   person.greetNewcomer(); // Alice greets the newcomer
   ```
-  * However: `o.f(?, 1)` would have its `this` weakly bound to `o`. Passing a custom `this` via `call` 
-    or `apply` would replace the `this` argument of the function.
-    > This needs more consideration - @rbuckton
 
 # Pipeline and Partial Application
 
 This proposal is designed to dove-tail into the pipeline operator (`|>`) proposal as a way to interop 
-with libraries like lodash (which accepts lists from the front of the argument list), and Ramda (which 
+with libraries like Lodash (which accepts lists from the front of the argument list), and Ramda (which 
 accepts lists from the end of the argument list):
 
 ```js
@@ -157,6 +154,7 @@ While this proposal leverages the existing `?` token used in conditional express
 have any parsing ambiguity as the `?` placeholder operator cannot have an expression immediately 
 precedeing it (e.g. `f(a?` is definitely a conditional while `f(?` is definitely a placeholder).
 
+<!--
 # Out of Scope/Future Directions
 
 There are several additional features that are currently out of scope for this proposal, but may be 
@@ -181,3 +179,4 @@ considered in future proposals or added to this proposal if there is a valid rea
   ```js
   f(? = 1, 2)       // roughly: (x = 1) => f(x, 2)
   ```
+-->
