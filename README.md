@@ -28,7 +28,6 @@ const newScore = player.score
 
 However, there are several of limitations with these approaches:
 
-* both `bind` and arrow functions fix the `this` of the resulting function.
 * `bind` can only fix the leading arguments of a function.
 * Arrow functions can be cumbersome when paired with the [pipeline proposal](https://github.com/gilbert/es-pipeline-operator):
   * Need to write `|> _ =>` for each step in the pipeline.
@@ -65,7 +64,7 @@ const g = f(?, 1)
 is roughly identical in its behavior to:
 
 ```js
-const g = function (_) { return f.apply(this, _, 1); }
+const g = (x, ...args) => f(x, 1, ...args);
 ```
 
 However, this is a somewhat trivial example. Partial application in this fashion has the following
@@ -99,6 +98,12 @@ semantic rules:
 
   g(1); // 11
   ```
+* Excess arguments supplied to the partially applied function are applied to the end of the original function:
+  ```js
+  const f = (x, ...y) => [x, ...y];
+  const g = f(?, 1);
+  g(2, 3, 4); // [2, 1, 3, 4];
+  ```
 * A `this` in the argument list is the lexical `this` of the containing scope:
   ```js
   const fader = {
@@ -112,16 +117,13 @@ semantic rules:
       }
   }
   ```
-* The `this` of the function `f` is unbound:
+* The `this` of the function `f` is fixed. However, you may uncurry `this`:
   ```js
   function greet(target) {
       return `${this.name} greets ${target}.`;
   }
-  const person = {
-      name: "Alice",
-      greetNewcomer: greet("the newcomer")
-  };
-  person.greetNewcomer(); // Alice greets the newcomer
+  const greeter = greet.call(?, "the newcomer");
+  greeter({ name: "Alice" }) // Alice greets the newcomer
   ```
 
 # Pipeline and Partial Application
