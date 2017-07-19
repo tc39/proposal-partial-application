@@ -23,7 +23,7 @@ addTen(2); // 12
 // arrow functions and pipeline
 const newScore = player.score
   |> _ => add(7, _)
-  |> _ => clamp(0, 100, _);
+  |> _ => clamp(0, 100, _); // deeply nested stack, the pipe to `clamp` is *inside* the previous arrow function.
 ```
 
 However, there are several of limitations with these approaches:
@@ -32,7 +32,8 @@ However, there are several of limitations with these approaches:
 * `bind` can only fix the leading arguments of a function.
 * Arrow functions can be cumbersome when paired with the [pipeline proposal](https://github.com/gilbert/es-pipeline-operator):
   * Need to write `|> _ =>` for each step in the pipeline.
-  * Unclear as to which scope we are in for the call to `boundScore`.
+  * Unclear as to which stack frame we are in for the call to `clamp`. This can affect available stack space and 
+    is harder to debug.
 
 To resolve these concerns, we propose leveraging the `?` token to act as an "argument placeholder" 
 for a non-fixed argument:
@@ -47,7 +48,7 @@ addTen(2); // 12
 // with pipeline
 let newScore = player.score
   |> add(7, ?)
-  |> clamp(0, 100, ?);
+  |> clamp(0, 100, ?); // shallow stack, the pipe to `clamp` is the same frame as the pipe to `add`.
 ```
 
 # Semantics
