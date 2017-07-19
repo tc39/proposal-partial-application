@@ -1,6 +1,6 @@
-# Partial Application for ECMAScript
+# Partial Application Syntax for ECMAScript
 
-This proposal introduces a new operator `?` that allows you to partially apply an argument list to 
+This proposal introduces a new syntax using the `?` token which allows you to partially apply an argument list to 
 a call expression by acting as a placeholder for an argument.
 
 # Proposal
@@ -125,6 +125,13 @@ semantic rules:
   const greeter = greet.call(?, "the newcomer");
   greeter({ name: "Alice" }) // Alice greets the newcomer
   ```
+* Placeholders can also be used with `new`:
+  ```js
+  const g = new C("a", ?);
+  const obj = g(1); // creates a C instance
+  ```
+* The `length` of the resulting function is equal to the number of `?` placeholder tokens in the
+  argument list.
 
 # Pipeline and Partial Application
 
