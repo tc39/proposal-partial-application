@@ -4,7 +4,8 @@
   "description": "Proposal to add partial application operators to ECMAScript",
   "private": true,
   "scripts": {
-    "update-pages": "gulp update-pages"
+    "compile": "gulp build",
+    "start": "gulp start"
   },
   "repository": {
     "type": "git",
