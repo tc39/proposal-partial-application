@@ -1,0 +1,30 @@
+{
+  "name": "proposal-partial-application",
+  "version": "1.0.0",
+  "description": "Proposal to add partial application operators to ECMAScript",
+  "private": true,
+  "scripts": {
+    "update-pages": "gulp update-pages"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rbuckton/proposal-partial-application.git"
+  },
+  "keywords": [
+    "javascript",
+    "ecmascript"
+  ],
+  "author": "Ron Buckton (rbuckton@microsoft.com)",
+  "license": "SEE LICENSE IN https://tc39.github.io/ecma262/#sec-copyright-and-software-license",
+  "bugs": {
+    "url": "https://github.com/rbuckton/proposal-partial-application/issues"
+  },
+  "homepage": "https://github.com/rbuckton/proposal-partial-application#readme",
+  "devDependencies": {
+    "del": "^2.2.2",
+    "ecmarkup": "^3.11.2",
+    "gulp": "^3.9.1",
+    "gulp-emu": "^1.1.0",
+    "gulp-live-server": "0.0.30"
+  }
+}
