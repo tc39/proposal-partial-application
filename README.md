@@ -333,6 +333,10 @@ considered in future proposals or added to this proposal if there is a valid rea
   ```
 -->
 
+# Resources
+
+- [Overview Slides](https://rbuckton.github.io/proposal-partial-application/PartialApplication-tc39.pptx)
+
 # TODO
 
 The following is a high-level list of tasks to progress through each stage of the [TC39 proposal process](https://tc39.github.io/process-document/):
