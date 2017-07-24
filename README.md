@@ -126,6 +126,29 @@ semantic rules:
   o.f = (x, y) => x * y;
   g(1); // 5
   ```
+  Note that this also means that more involved references are captured in their entirety and should be
+  stored in a local variable if they may have unintended side-effects should the partially applied 
+  function result be called more than once:
+  ```js
+  const a = [{ c: x => x + 1 }, { c: x => x + 2 }];
+  let b = 0;
+  const g = a[b++].c(?);
+  b; // 0
+  g(1); // 2
+  g(1); // 3
+  b; // 2
+
+  // vs
+
+  const a = [{ c: x => x + 1 }, { c: x => x + 2 }];
+  let b = 0;
+  const o = a[b++];
+  const g = o.c(?);
+  b; // 1
+  g(1); // 2
+  g(1); // 2
+  b; // 1
+  ```
 * Given `f(?)`, while the non-placeholder arguments to `f` are fixed in their positions, they are not 
   evaluated immediately. Side effects that mutate references in these arguments can be observed with 
   successive calls to the resulting function:
