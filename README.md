@@ -3,6 +3,17 @@
 This proposal introduces a new syntax using the `?` and `...` tokens which allows you to partially apply an argument list to 
 a call expression by acting as placeholders for an argument or arguments.
 
+## Status
+
+**Stage:** 0  
+**Champion:** Ron Buckton (@rbuckton)
+
+_For more information see the [TC39 proposal process](https://tc39.github.io/process-document/)._
+
+## Authors
+
+* Ron Buckton (@rbuckton)
+
 # Proposal
 
 Partial function application allows you to fix a number of arguments to a function call, returning
@@ -29,6 +40,7 @@ const newScore = player.score
 However, there are several of limitations with these approaches:
 
 * `bind` can only fix the leading arguments of a function.
+* `bind` requires you explicitly specify the `this` receiver.
 * Arrow functions can be cumbersome when paired with the [pipeline proposal](https://github.com/gilbert/es-pipeline-operator):
   * Need to write `|> _ =>` for each step in the pipeline.
   * Unclear as to which stack frame we are in for the call to `clamp`. This can affect available stack space and 
@@ -54,6 +66,17 @@ maxGreaterThanZero(1, 2); // 2
 maxGreaterThanZero(-1, -2); // 0
 ```
 
+# Syntax
+
+```js
+f(x, ?)           // partial application from left
+f(x, ...)         // partial application from left with rest
+f(?, x)           // partial application from right
+f(..., x)         // partial application from right with rest
+f(?, x, ?)        // partial application for any arg
+f(..., x, ...)    // partial application for any arg with rest
+```
+
 # Semantics
 
 The `?` and `...` placeholder tokens can only be used in an argument list of a call expression. When present, 
@@ -74,7 +97,7 @@ const g = (x, ...y) => f(x, 1, ...y);
 However, this is a somewhat trivial example. Partial application in this fashion has the following
 semantic rules:
 
-* Given `f(?)`, the reference to `f` is not evaluated immediately. Side effects that replace `f` 
+* Given `f(?)`, the expression `f` is not evaluated immediately. Side effects that replace `f` 
   can be observed with successive calls to the resulting function:
   ```js
   let f = (x, y) => x + y;
@@ -118,28 +141,29 @@ semantic rules:
 
   g(1); // 11
   ```
-* Given `f(?)`, excess arguments supplied to the partially applied function result are ignored:
+* Given `g = f(?)`, excess arguments supplied to the partially applied function result `g` are ignored:
   ```js
   const f = (x, ...y) => [x, ...y];
   const g = f(?, 1);
   g(2, 3, 4); // [2, 1]
   ```
-* Given `f(?, ?)` (or `f(?, a, ?)`, etc.), the partially applied function result will have two 
-  parameters that are supplied in the first and last argument positions:
+* Given `g = f(?, ?)` the partially applied function result `g` will have a 
+  parameter for each placeholder token that is supplied in that token's position in the 
+  argument list:
   ```js
   const f = (x, y, z) => [x, y, z];
   const g = f(?, 4, ?);
   g(1, 2); // [1, 4, 2]
   ```
-* Given `f(...)`, excess arguments supplied to the partially applied function result are spread 
+* Given `g = f(...)`, excess arguments supplied to the partially applied function result `g` are spread 
   into the original function at the indicated position:
   ```js
   const f = (x, ...y) => [x, ...y];
   const g = f(?, 1, ...);
   g(2, 3, 4); // [2, 1, 3, 4];
   ```
-* Given `f(..., ...)` (or `f(..., a, ...)`, etc.), the excess arguments supplied to the partially 
-  applied function result are collected **once** but are spread into the call once for each 
+* Given `g = f(..., ...)`, the excess arguments supplied to the partially 
+  applied function result `g` are collected **once** but are spread into the call once for each 
   position:
   ```js
   const f = (...x) => x;
@@ -159,8 +183,8 @@ semantic rules:
       }
   }
   ```
-* Given `f(?)`, the `this` receiver of the function `f` is fixed as `undefined` in the partially
-  applied function result:
+* Given `g = f(?)`, the `this` receiver of the function `f` is fixed as `undefined` in the partially
+  applied function result `g`:
   ```js
   function f(x) { return `this: ${this}, x: ${x}`; }
   const o = { g: f(?) };
@@ -172,8 +196,8 @@ semantic rules:
   const g = f.call(?, 2);
   g(1, 2); // `this: 1, x: 2`
   ```
-* Given `o.f(?)`, the `this` receiver of the function `o.f` is fixed as `o` in the partially 
-  applied function result:
+* Given `g = o.f(?)`, the `this` receiver of the function `o.f` is fixed as `o` in the partially 
+  applied function result `g`:
   ```js
   const o = { f(x) { return `this.y: ${this.y}, x: ${x}`; }, y: 1 };
   const g = o.f(?);
@@ -185,7 +209,7 @@ semantic rules:
   const g = o.f.call(?, 3);
   g({ y: 4 }); // 'this.y: 4, x: 3'
   ```
-* Given `new f(?)`, the partially applied function result is a function that when called will 
+* Given `g = new f(?)`, the partially applied function result `g` is a function that when called will 
   construct a new instance of `f`:
   ```js
   function f(x, y) { this.z = `${x}, ${y}` }
@@ -193,7 +217,7 @@ semantic rules:
   const obj = g(1); // creates an f instance
   obj.z; // 'a, 1'
   ```
-* Given `f(?)`, the `length` of the resulting function is equal to the number of `?` placeholder tokens in the
+* Given `g = f(?)`, the `length` of the partially applied function result `g` is equal to the number of `?` placeholder tokens in the
   argument list:
   ```js
   const f = (x, y) => x + y;
@@ -202,7 +226,7 @@ semantic rules:
   g.length; // 1
   ```
 
-# Pipeline and Partial Application
+## Pipeline and Partial Application
 
 This proposal is designed to dove-tail into the pipeline operator (`|>`) proposal as a way to interop 
 with libraries like Lodash (which accepts lists from the front of the argument list), and Ramda (which 
@@ -248,9 +272,22 @@ const (_temp = a, _temp = f(_temp, 1), g(_temp, 2));
 
 # Parsing
 
-While this proposal leverages the existing `?` token used in conditional expressions, it does not 
-have any parsing ambiguity as the `?` placeholder token cannot have an expression immediately 
-precedeing it (e.g. `f(a?` is definitely a conditional while `f(?` is definitely a placeholder).
+While this proposal leverages the existing `?` token used in conditional expressions, it does not
+introduce parsing ambiguity as the `?` placeholder token can only be used in an argument list and 
+cannot have an expression immediately precedeing it (e.g. `f(a?` is definitely a conditional 
+while `f(?` is definitely a placeholder).
+
+# Grammar
+
+```grammarkdown
+ArgumentList[Yield, Await]:
+  `?`
+  AssignmentExpression[+In, ?Yield, ?Await]
+  `...` AssignmentExpression[+In, ?Yield, ?Await]?
+  ArgumentList[?Yield, ?Await] `,` `?`
+  ArgumentList[?Yield, ?Await] `,` AssignmentExpression[+In, ?Yield, ?Await]
+  ArgumentList[?Yield, ?Await] `,` `...` AssignmentExpression[+In, ?Yield, ?Await]?
+```
 
 <!--
 # Out of Scope/Future Directions
@@ -272,3 +309,46 @@ considered in future proposals or added to this proposal if there is a valid rea
   f(? = 1, 2)       // roughly: (x = 1) => f(x, 2)
   ```
 -->
+
+# TODO
+
+The following is a high-level list of tasks to progress through each stage of the [TC39 proposal process](https://tc39.github.io/process-document/):
+
+### Stage 1 Entrance Criteria
+
+[x] Identified a "[champion][Champion]" who will advance the addition.  
+[x] [Prose][Prose] outlining the problem or need and the general shape of a solution.  
+[x] Illustrative [examples][Examples] of usage.  
+[x] ~High-level API~ _(proposal does not introduce an API)_.  
+
+### Stage 2 Entrance Criteria
+
+[ ] [Initial specification text][Specification].  
+[ ] _Optional_. [Transpiler support][Transpiler].  
+
+### Stage 3 Entrance Criteria
+
+[ ] [Complete specification text][Specification].  
+[ ] Designated reviewers have [signed off][Stage3ReviewerSignOff] on the current spec text.  
+[ ] The ECMAScript editor has [signed off][Stage3EditorSignOff] on the current spec text.  
+
+### Stage 4 Entrance Criteria
+
+[ ] [Test262](https://github.com/tc39/test262) acceptance tests have been written for mainline usage scenarios and [merged][Test262PullRequest].  
+[ ] Two compatible implementations which pass the acceptance tests: [\[1\]][Implementation1], [\[2\]][Implementation2].  
+[ ] A [pull request][Ecma262PullRequest] has been sent to tc39/ecma262 with the integrated spec text.  
+[ ] The ECMAScript editor has signed off on the [pull request][Ecma262PullRequest].  
+
+<!-- The following are shared links used throughout the README: -->
+
+[Champion]: #status
+[Prose]: #proposal
+[Examples]: #examples
+[Specification]: #todo
+[Transpiler]: #todo
+[Stage3ReviewerSignOff]: #todo
+[Stage3EditorSignOff]: #todo
+[Test262PullRequest]: #todo
+[Implementation1]: #todo
+[Implementation2]: #todo
+[Ecma262PullRequest]: #todo
