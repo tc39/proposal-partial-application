@@ -1,7 +1,7 @@
 # Partial Application Syntax for ECMAScript
 
-This proposal introduces a new syntax using the `?` and `...` tokens which allows you to partially apply an argument list to 
-a call expression by acting as placeholders for an argument or arguments.
+This proposal introduces a new syntax using the `?` token in an argument list which allows you to 
+partially apply an argument list to a call expression by acting as a placeholder for an argument.
 
 ## Status
 
@@ -17,8 +17,8 @@ _For more information see the [TC39 proposal process](https://tc39.github.io/pro
 # Proposal
 
 Partial function application allows you to fix a number of arguments to a function call, returning
-a new function. Partial application is supported after a fashion in ECMAScript today through the use of either 
-`Function#bind` or arrow functions:
+a new function. Partial application is supported after a fashion in ECMAScript today through the 
+use of either `Function#bind` or arrow functions:
 
 ```js
 function add(x, y) { return x + y; }
@@ -47,7 +47,7 @@ However, there are several of limitations with these approaches:
     is harder to debug.
 
 To resolve these concerns, we propose leveraging the `?` token to act as an "argument placeholder" 
-for a non-fixed argument, and the `...` token to act as a "remaining arguments placeholder":
+for a non-fixed argument:
 
 ```js
 const addOne = add(1, ?); // apply from the left
@@ -60,194 +60,86 @@ addTen(2); // 12
 let newScore = player.score
   |> add(7, ?)
   |> clamp(0, 100, ?); // shallow stack, the pipe to `clamp` is the same frame as the pipe to `add`.
-
-const maxGreaterThanZero = Math.max(0, ...);
-maxGreaterThanZero(1, 2); // 2
-maxGreaterThanZero(-1, -2); // 0
 ```
 
 # Syntax
 
+The `?` placeholder token can be supplied one or more times at the top level of the _Arguments_ of 
+a _CallExpression_, _CallMemberExpression_, or _SuperCall_ (e.g. `f(?)` or `o.f(?)`). `?` is **not**
+an expression, rather it is a syntactic element of an _ArgumentList_ that indicates special behavior
+(much like how `` `...` AssignmentExpression `` indicates spread, yet is itself not an expression). 
+
 ```js
+// valid
 f(x, ?)           // partial application from left
-f(x, ...)         // partial application from left with rest
 f(?, x)           // partial application from right
-f(..., x)         // partial application from right with rest
 f(?, x, ?)        // partial application for any arg
-f(..., x, ...)    // partial application for any arg with rest
+o.f(x, ?)         // partial application from left
+o.f(?, x)         // partial application from right
+o.f(?, x, ?)      // partial application for any arg
+
+// invalid
+f(x + ?)          // `?` not in top-level Arguments of call
+x + ?             // `?` not in top-level Arguments of call
+?.f()             // `?` not in top-level Arguments of call
+new f(?)          // `?` not supported in `new`
 ```
 
 # Semantics
 
-The `?` and `...` placeholder tokens can only be used in an argument list of a call expression. When present, 
-the result of the call is a new function with a parameter for each `?` token in the argument list. Any excess
-parameters are spread into the call at the position of the `...` token. Any non-placeholder expression in the 
-argument list becomes fixed in its position. This is illustrated by the following syntactic conversion:
+The `?` placeholder token can only be used in an argument list of a call expression. When present, 
+the result of the call is a new function with a parameter for each `?` token in the argument list. 
+Any non-placeholder expression in the argument list becomes fixed in its position. This is 
+illustrated by the following syntactic conversion:
 
 ```js
-const g = f(?, 1, ...)
+const g = f(?, 1, ?);
 ```
 
 is roughly identical in its behavior to:
 
 ```js
-const g = (x, ...y) => f(x, 1, ...y);
+const $$temp0 = f, $$temp1 = 1;
+const g = (_0, _1) => $$temp0(_0, $$temp1, _1);
 ```
 
-However, this is a somewhat trivial example. Partial application in this fashion has the following
-semantic rules:
+In addition to fixing the function to be called and its explicit arguments, we also fix any 
+supplied _receiver_ as part of the resulting function. As such, `o.f(?)` will maintain `o` as the 
+`this` receiver when calling `o.f`. This can be illustrated by the following syntactic conversion:
 
-* Given `f(?)`, the expression `f` is not evaluated immediately. Side effects that replace `f` 
-  can be observed with successive calls to the resulting function:
-  ```js
-  let f = (x, y) => x + y;
+```js
+const g = o.f(?, 1);
+```
 
-  const g = f(?, 3);
-  g(1); // 4
+is roughly identical in its behavior to:
 
-  // replace the value of `f`
-  f = (x, y) => x * y;
+```js
+const $$temp0 = o, $$temp1 = $$temp0.f, $$temp2 = 1;
+const g = (_0) => $$temp1.call($$temp0, _0, $$temp2);
+```
 
-  g(1); // 3
-  ```
-* Given `o.f(?)`, the references to `o` and `o.f` are not evaluated immediately. Side effects that 
-  replace `o` or `o.f` can be observed with successive calls to the resulting function:
-  ```js
-  let o = { f(x, y) { return x + y + this.z; }, z: 0 };
-  
-  const g = o.f(?, 3);
-  g(1); // 4
+In both of the above examples, excess supplied arguments to `g` are ignored and **not** passed on 
+to the partially applied function. The ability to pass on additional arguments is not part of this
+proposal but may be considered in a future proposal.
 
-  // replace the value of `o`
-  o = { f(x, y) { return x + y + this.z; }, z: 2 };
-  g(1); // 6
+The following is a list of additional semantic rules:
 
-  // replace the value of `o.f`
-  o.f = (x, y) => x * y;
-  g(1); // 5
-  ```
-  Note that this also means that more involved references are captured in their entirety and should be
-  stored in a local variable if they may have unintended side-effects should the partially applied 
-  function result be called more than once:
-  ```js
-  const a = [{ c: x => x + 1 }, { c: x => x + 2 }];
-  let b = 0;
-  const g = a[b++].c(?);
-  b; // 0
-  g(1); // 2
-  g(1); // 3
-  b; // 2
-
-  // vs
-
-  const a = [{ c: x => x + 1 }, { c: x => x + 2 }];
-  let b = 0;
-  const o = a[b++];
-  const g = o.c(?);
-  b; // 1
-  g(1); // 2
-  g(1); // 2
-  b; // 1
-  ```
-* Given `f(?)`, while the non-placeholder arguments to `f` are fixed in their positions, they are not 
-  evaluated immediately. Side effects that mutate references in these arguments can be observed with 
-  successive calls to the resulting function:
-  ```js
-  let a = 3;
-  const f = (x, y) => x + y;
-
-  const g = f(?, a);
-  g(1); // 4
-
-  // replace the value of `a`
-  a = 10;
-
-  g(1); // 11
-  ```
-* Given `g = f(?)`, excess arguments supplied to the partially applied function result `g` are ignored:
-  ```js
-  const f = (x, ...y) => [x, ...y];
-  const g = f(?, 1);
-  g(2, 3, 4); // [2, 1]
-  ```
-* Given `g = f(?, ?)` the partially applied function result `g` will have a 
-  parameter for each placeholder token that is supplied in that token's position in the 
-  argument list:
-  ```js
-  const f = (x, y, z) => [x, y, z];
-  const g = f(?, 4, ?);
-  g(1, 2); // [1, 4, 2]
-  ```
-* Given `g = f(...)`, excess arguments supplied to the partially applied function result `g` are spread 
-  into the original function at the indicated position:
-  ```js
-  const f = (x, ...y) => [x, ...y];
-  const g = f(?, 1, ...);
-  g(2, 3, 4); // [2, 1, 3, 4];
-  ```
-* Given `g = f(..., ...)`, the excess arguments supplied to the partially 
-  applied function result `g` are collected **once** but are spread into the call once for each 
-  position:
-  ```js
-  const f = (...x) => x;
-  const g = f(..., 9, ...);
-  g(1, 2, 3); // [1, 2, 3, 9, 1, 2, 3]
-  ```
-* Given `f(this, ?)`, the `this` in the argument list is the lexical `this`:
-  ```js
-  const fader = {
-      color: "#00ffff",
-      async fade() {
-        const fadeOut = desaturate(this.color, ?); // capture lexical `this` here.
-        for (let i = 100; i > 0; i -= 10) {
-            fadeOut(i);
-            await delay(10);
-        }
-      }
-  }
-  ```
-* Given `g = f(?)`, the `this` receiver of the function `f` is fixed as `undefined` in the partially
-  applied function result `g`:
-  ```js
-  function f(x) { return `this: ${this}, x: ${x}`; }
-  const o = { g: f(?) };
-  o.g(2); // 'this: undefined, x: 2'
-  ```
-  However, you may uncurry `this` using `f.call`:
-  ```js
-  function f(x) { return `this: ${this}, x: ${x}.`; }
-  const g = f.call(?, 2);
-  g(1, 2); // `this: 1, x: 2`
-  ```
-* Given `g = o.f(?)`, the `this` receiver of the function `o.f` is fixed as `o` in the partially 
-  applied function result `g`:
-  ```js
-  const o = { f(x) { return `this.y: ${this.y}, x: ${x}`; }, y: 1 };
-  const g = o.f(?);
-  g(2); // 'this.y: 1, x: 2'
-  ```
-  However, you may uncurry `this` using `o.f.call`:
-  ```js
-  const o = { f(x) { return `this.y: ${this.y}, x: ${x}`; }, y: 1 };
-  const g = o.f.call(?, 3);
-  g({ y: 4 }); // 'this.y: 4, x: 3'
-  ```
-* Given `g = new f(?)`, the partially applied function result `g` is a function that when called will 
-  construct a new instance of `f`:
-  ```js
-  function f(x, y) { this.z = `${x}, ${y}` }
-  const g = new f("a", ?);
-  const obj = g(1); // creates an f instance
-  obj.z; // 'a, 1'
-  ```
-* Given `g = f(?)`, the `length` of the partially applied function result `g` is equal to the number of `?` placeholder tokens in the
-  argument list:
-  ```js
-  const f = (x, y) => x + y;
-  const g = f(?, 2);
-  f.length; // 2
-  g.length; // 1
-  ```
+* Given `f(?)`, the expression `f` is evaluated immediately.
+* Given `f(?, x)`, the non-placeholder argument `x` is evaluated immediately and fixed in its position.
+* Given `f(?)`, excess arguments supplied to the partially applied function result are ignored.
+* Given `f(?, ?)` the partially applied function result will have a parameter for each placeholder 
+  token that is supplied in that token's position in the argument list.
+* Given `f(this, ?)`, the `this` in the argument list is the lexical `this`.
+* Given `f(?)`, the `this` receiver of the function `f` is fixed as `undefined` in the partially
+  applied function result.
+* Given `f(?)`, the `length` of the partially applied function result is equal to the number of `?` placeholder tokens in the
+  argument list.
+* Given `f(?)`, the `name` of the partially applied function result is `f.name`.
+* Given `o.f(?)`, the references to `o` and `o.f` are evaluated immediately.
+* Given `o.f(?)`, the `this` receiver of the function `o.f` is fixed as `o` in the partially 
+  applied function result.
+* Given `f(g(?))`, this is roughly equivalent to `f(_0 => g(_0))` **not** `_0 => f(g(_0))`. This 
+  is because the `?` is directly part of the argument list of `g` and not the argument list of `f`.
 
 ## Pipeline and Partial Application
 
@@ -283,14 +175,8 @@ const res = a |> f(?, 1) |> g(?, 2);
 is approximately identical to:
 
 ```js
-const res = g(f(a, 1), 2);
-```
-
-though a more accurate conversion would be:
-
-```js
-let _temp;
-const (_temp = a, _temp = f(_temp, 1), g(_temp, 2));
+let $$temp;
+const res = ($$temp = a, $$temp = f($$temp, 1), g($$temp, 2));
 ```
 
 # Parsing
@@ -303,35 +189,29 @@ while `f(?` is definitely a placeholder).
 # Grammar
 
 ```grammarkdown
-ArgumentList[Yield, Await]:
-  `?`
-  AssignmentExpression[+In, ?Yield, ?Await]
-  `...` AssignmentExpression[+In, ?Yield, ?Await]?
-  ArgumentList[?Yield, ?Await] `,` `?`
-  ArgumentList[?Yield, ?Await] `,` AssignmentExpression[+In, ?Yield, ?Await]
-  ArgumentList[?Yield, ?Await] `,` `...` AssignmentExpression[+In, ?Yield, ?Await]?
+MemberExpression[Yield, Await] :
+  `new` MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, +New]
+
+CallExpression[Yield, Await] :
+  CallExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~New]
+
+CoverCallExpressionAndAsyncArrowHead[Yield, Await]:
+  MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~New]
+
+CallMemberExpression[Yield, Await] :
+  MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~New]
+
+SuperCall[Yield, Await] :
+  `super` Arguments[?Yield, ?Await, ~New]
+
+Arguments[Yield, Await, New] :
+  `(` ArgumentList[?Yield, ?Await, ?New] `)`
+  `(` ArgumentList[?Yield, ?Await, ?New], `,` `)`
+
+ArgumentList[Yield, Await, New] :
+  [~New] `?`
+  [~New] ArgumentList[?Yield, ?Await, ~New] `,` `?`
 ```
-
-<!--
-# Out of Scope/Future Directions
-
-There are several additional features that are currently out of scope for this proposal, but may be 
-considered in future proposals or added to this proposal if there is a valid reason to do so:
-
-* Positional placeholders:
-  ```js
-  f(?1, ?0)         // roughly: (x, y) => f(y, x)
-  ```
-* Spread a placeholder *without* rest:
-  ```js
-  f(1, ...?, 2)     // roughly: (x) => f(1, ...x, 2)
-  ```
-* Default initializers (similar to initializers/defaults for parameters, destructuring, and 
-  binding patterns):
-  ```js
-  f(? = 1, 2)       // roughly: (x = 1) => f(x, 2)
-  ```
--->
 
 # Resources
 
