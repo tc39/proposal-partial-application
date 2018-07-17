@@ -132,8 +132,9 @@ const g = (_0, _1) => $$temp0($$temp1, _0, $$temp2, _1);
 ```
 
 In addition to fixing the function to be called and its explicit arguments, we also fix any 
-supplied _receiver_ as part of the resulting function. As such, `o.f(?)` will maintain `o` as the 
-`this` receiver when calling `o.f`. This can be illustrated by the following syntactic conversion:
+supplied _receiver_ as part of the resulting function, as we will store the Reference in the 
+resulting function. As such, `o.f(?)` will maintain `o` as the `this` receiver when calling `o.f`. 
+This can be illustrated by the following syntactic conversion:
 
 ```js
 const g = o.f(?, 1);
