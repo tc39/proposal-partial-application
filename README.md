@@ -41,6 +41,7 @@ However, there are several of limitations with these approaches:
 
 * `bind` can only fix the leading arguments of a function.
 * `bind` requires you explicitly specify the `this` receiver.
+* You cannot easily use `bind` with a template expression or tagged template expression.
 * Arrow functions can be cumbersome when paired with the [pipeline proposal](https://github.com/gilbert/es-pipeline-operator):
   * Need to write `|> _ =>` for each step in the pipeline.
   * Unclear as to which stack frame we are in for the call to `clamp`. This can affect available stack space and 
@@ -62,8 +63,11 @@ let newScore = player.score
   |> clamp(0, 100, ?); // shallow stack, the pipe to `clamp` is the same frame as the pipe to `add`.
 
 // partial template strings
-const getHello = `Hello, ${?}!`; 
-const helloBob = getHello("Bob"); // "Hello, Bob!"
+const Diagnostics = {
+  unexpected_token: `Unexpected token: ${?}`,
+  name_not_found: `'${?}' not found.`
+};
+Diagnostics.name_not_found("foo"); // "'foo' not found."
 ```
 
 # Syntax
