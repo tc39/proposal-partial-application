@@ -60,14 +60,19 @@ addTen(2); // 12
 let newScore = player.score
   |> add(7, ?)
   |> clamp(0, 100, ?); // shallow stack, the pipe to `clamp` is the same frame as the pipe to `add`.
+
+// partial template strings
+const getHello = `Hello, ${?}!`; 
+const helloBob = getHello("Bob"); // "Hello, Bob!"
 ```
 
 # Syntax
 
 The `?` placeholder token can be supplied one or more times at the top level of the _Arguments_ of 
-a _CallExpression_, _CallMemberExpression_, or _SuperCall_ (e.g. `f(?)` or `o.f(?)`). `?` is **not**
-an expression, rather it is a syntactic element of an _ArgumentList_ that indicates special behavior
-(much like how `` `...` AssignmentExpression `` indicates spread, yet is itself not an expression). 
+a _CallExpression_, _CallMemberExpression_, or _SuperCall_ (e.g. `f(?)` or `o.f(?)`), or in place 
+of the _Expression_ of a _TemplateMiddleList_ (e.g. `` f`before${?}after` ``). `?` is **not**
+an expression, rather it is a syntactic element that indicates special behavior (much like how 
+`` `...` AssignmentExpression `` indicates spread, yet is itself not an expression). 
 
 ```js
 // valid
@@ -87,8 +92,9 @@ new f(?)          // `?` not supported in `new`
 
 # Semantics
 
-The `?` placeholder token can only be used in an argument list of a call expression. When present, 
-the result of the call is a new function with a parameter for each `?` token in the argument list. 
+The `?` placeholder token can only be used in an argument list of a call expression, or as the only
+token in a placeholder of a template expression or tagged template expression. When present, the 
+result of the call is a new function with a parameter for each `?` token in the argument list. 
 Any non-placeholder expression in the argument list becomes fixed in its position. This is 
 illustrated by the following syntactic conversion:
 
@@ -99,8 +105,24 @@ const g = f(?, 1, ?);
 is roughly identical in its behavior to:
 
 ```js
-const $$temp0 = f, $$temp1 = 1;
+const $$temp0 = f;
+const $$temp1 = 1;
 const g = (_0, _1) => $$temp0(_0, $$temp1, _1);
+```
+
+As well, with template expressions:
+
+```js
+const g = f`${?},${1},${?}`;
+```
+
+is roughly identical in its behavior to:
+
+```js
+const $$temp0 = f;
+const $$temp1 = /*template site object for `${?},${1},${?}`*/;
+const $$temp2 = 1;
+const g = (_0, _1) => $$temp0($$temp1, _0, $$temp2, _1);
 ```
 
 In addition to fixing the function to be called and its explicit arguments, we also fix any 
@@ -138,7 +160,7 @@ The following is a list of additional semantic rules:
 * Given `o.f(?)`, the references to `o` and `o.f` are evaluated immediately.
 * Given `o.f(?)`, the `this` receiver of the function `o.f` is fixed as `o` in the partially 
   applied function result.
-* Given `f(g(?))`, this is roughly equivalent to `f(_0 => g(_0))` **not** `_0 => f(g(_0))`. This 
+* Given `f(g(?))`, the result is equivalent to `f(_0 => g(_0))` **not** `_0 => f(g(_0))`. This 
   is because the `?` is directly part of the argument list of `g` and not the argument list of `f`.
 
 ## Pipeline and Partial Application
@@ -189,29 +211,197 @@ while `f(?` is definitely a placeholder).
 # Grammar
 
 ```grammarkdown
+TemplateMiddleList[Yield, Await, Tagged] :
+  TemplateMiddle `?`
+  TemplateMiddle Expression[+In, ?Yield, ?Await]
+  TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
+
 MemberExpression[Yield, Await] :
-  `new` MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, +New]
+  `new` MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~Partial]
 
 CallExpression[Yield, Await] :
-  CallExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~New]
+  CallExpression[?Yield, ?Await] Arguments[?Yield, ?Await, +Partial]
 
 CoverCallExpressionAndAsyncArrowHead[Yield, Await]:
-  MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~New]
+  MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, +Partial
 
 CallMemberExpression[Yield, Await] :
-  MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~New]
+  MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, +Partial]
 
 SuperCall[Yield, Await] :
-  `super` Arguments[?Yield, ?Await, ~New]
+  `super` Arguments[?Yield, ?Await, +Partial]
 
-Arguments[Yield, Await, New] :
-  `(` ArgumentList[?Yield, ?Await, ?New] `)`
-  `(` ArgumentList[?Yield, ?Await, ?New], `,` `)`
+Arguments[Yield, Await, Partial] :
+  `(` ArgumentList[?Yield, ?Await, ?Partial] `)`
+  `(` ArgumentList[?Yield, ?Await, ?Partial], `,` `)`
 
-ArgumentList[Yield, Await, New] :
-  [~New] `?`
-  [~New] ArgumentList[?Yield, ?Await, ~New] `,` `?`
+ArgumentList[Yield, Await, Partial] :
+  AssignmentExpression[+In, ?Yield, ?Await]
+  `...` AssignmentExpression[+In, ?Yield, ?Await]
+  ArgumentList[?Yield, ?Await, ?Partial] `,` AssignmentExpression[+In, ?Yield, ?Await]
+  ArgumentList[?Yield, ?Await, ?Partial] `,` `...` AssignmentExpression[+In, ?Yield, ?Await]
+  [+Partial] `?`
+  [+Partial] ArgumentList[?Yield, ?Await, ?Partial] `,` `?`
 ```
+
+# Open Questions/Concerns
+
+## The "garden path" 
+
+Partial application is an example of a "garden path" syntax, in that as you start to read 
+`f(a, b(), c, ?)` from left to right it initially looks like a regular _CallExpression_.
+It is not until you reach the final `?` argument that it becomes clear that this is a partial 
+application of the function `f`. 
+
+One suggestion to solve this would be to have some sort of prefix token to indicate that the call 
+is, in fact, partial. This is under consideration at this time, however we currently feel that this
+is an unnecessary syntactic burden. There already exists two other cases in ECMAScript that exhibit
+this "garden path" behavior: Arrow functions and Assignment patterns. Both of these features 
+provided a new capabilities for the development community and have already become well understood
+and heavily adopted features. As such, we believe that partial application is also a sufficiently
+powerful new capability that more than compensates for the "garden path" concern.
+
+## Support for `new`
+
+Currently, partial application is not supported for `new`. This is more a matter of determining 
+the best semantics for this behavior. Currently we are considering allowing partial application
+of `new` as resulting in a function that _also_ must be called with `new`:
+
+```js
+const f = new Point(?, 10);
+const obj1 = f(20);     // TypeError
+const obj2 = new f(20); // OK
+```
+
+However, we have not yet settled on this behavior and have decided to forbid usage in `new` at 
+this time.
+
+## Support for rest/spread (`...`)
+
+At this time rest/spread (`...`) has been removed from this proposal to be considered as a future
+revision.
+
+Previously, this proposal allowed `...` as a placeholder, which indicated that the _rest_ of the
+unbound arguments should be _spread_ in this position:
+
+```js
+function f(a, b, c, d) { console.log(`a: ${a}, b: ${b}, c: ${c}, d: ${d}`); }
+const g = f(?, 1, ...);
+g(2);       // a: 2, b: 1, c: undefined, d: undefined
+g(2, 3);    // a: 2, b: 1, c: 3, d: undefined
+g(2, 3, 4); // a: 2, b: 1, c: 3, d: 4
+```
+
+However, there was some confusion and concern about using `...` twice in an argument list, 
+as well as how to get the _rest_ of the arguments as an array instead of spreading them.
+
+This is a feature we may revisit as a follow in proposal in the future. In the mean time,
+Arrow functions are a feasible alternative.
+
+## Support for "receiver" placeholder
+
+There have been several discussions related to partial application and the ability to
+bind the receiver in an expression, i.e. `X |> ?.foo()`. This is not a feature we are 
+pursuing at this time as it greatly expands the syntax complexity (need to find `?` in
+any expression, rather than just in _ArgumentList_), and runs afoul of visual ambiguity
+with the optional chaining proposal.
+
+## Choosing a different token than `?`
+
+There have been suggestions to consider another token aside from `?`, given that optional
+chaining may be using `?.` and nullish coalesce may be using `??`. It is our opinion that
+such a token change is unnecessary, as `?` may _only_ be used on its on in an argument list
+and _may not_ be combined with these operators (e.g. `f(??.a??c)` is not legal). The `?`
+token's visual meaning best aligns with this proposal, and its fairly easy to write similarly
+complex expressions today using existing tokens (e.g. `f(+i+++j-i---j)` or `f([[][]][[]])`).
+A valid, clean example of both partial application, optional chaining, and nullish coalesce is
+not actually difficult to read in most cases: `f(?, a?.b ?? c)`.
+
+## Relation to the Pipeline Operator
+
+While useful in its own right, partial application was initially envisioned alongside the 
+pipeline operator (`|>`) as a means of piping the left-hand operand into a specific argument 
+position in a function call on the right-hand operand.
+
+However, there are currently three competing proposals for pipeline:
+
+1. F#-style pipelines (which this proposal favors).
+1. Hack-style pipelines
+1. "Smart mix" pipelines
+
+### F#-style pipelines
+
+An F#-style pipeline is represented by the expression `X |> F`, in which `X` and then `F` are 
+evaluated, and the result of `F(X)` is returned. In general, this is a fairly simple set of
+rules to explain.
+
+Partial application can also be easily explained in terms of `F.bind()`, except that you have 
+more control over which arguments are bound and which are unbound.
+
+These two building blocks can then be used to form more complex expressions. For example, in the
+expression `X |> F(a, ?)`, `X` is evaluated, followed by `F`, and `a`, and then the result of 
+`F(a, X)` is returned.
+
+While F#-style pipelines are easily explained, there are caveats regarding their execution. 
+As they are designed to pipe function calls, other expression forms are not supported without
+leveraging something like an Arrow function. It also requires a special syntactic form to 
+support `await` in the middle of an F#-style pipeline, and `yield`/`yield*` is not supported
+at all.
+
+This proposal heavily favors the F#-style pipeline approach as it complements partial 
+application and is easier to teach both as individual components of the language that can
+be composed together for greater effect.
+
+### Hack-style pipelines
+
+A Hack-style pipeline is represented by the expression `X |> F($)`, in which `X` is evaluated
+and stored in a "topic variable" (in this example, `$`), then `F` is evaluated, and the result
+of `F($)` is returned.
+
+Since the right-hand operand of a Hack-style pipeline can be an arbitrary expression, it is
+farily easy to perform in-situ calculations (i.e. `X |> $ + $`), as well as support operators
+such as `await` and `yield`/`yield*`.
+
+While Hack-style pipelines are very flexible, they do not support tacit, point-free pipelines
+such as `X |> F`, as you must use the topic variable to pass the value. Also, topic variables
+have various caveats. Topic variables that are _also_ valid identifiers can shadow identifiers
+declared in an outer scope. This is problematic as the most common topic variables in other 
+languages are tokens like `$` or `_`, which are both the default names of highly popular
+libraries (i.e. jQuery, underscore, lodash). As such, it is currently in proposal to use a 
+non-identifier token as the topic. 
+
+Topic variables also can be difficult to use if you introduce a nested scope that has the topic 
+variable in scope, especially if you intend to reference an outer topic variable within a 
+pipeline in a nested scope. This complication still arises even when using a non-identifier 
+token as the topic.
+
+Also, Hack-style pipelines are already feasible _without_ introducing new syntax today:
+
+```js
+let $; // Hack-style topic variable
+let result = (
+  $= books,
+  $= filter($, _ => _.title = "..."),
+  $= map($, _ => _.author),
+  $);
+```
+
+### "Smart mix" pipelines
+
+"Smart mix" pipelines are represented by _either_ `X |> F` (where `F` _may not_ have parenthesis), 
+or `X |> F($)`. Smart mix pipelines are designed to support _both_ Hack-style pipelines with a 
+topic variable, as well as tacit point-free pipelines. Smart-mix pipelines would effectively 
+forbid the use of partial application in a pipeline, as any right-hand operand expression with
+parenthesis _must_ use the topic variable. Since `X |> F(1, ?)($)` is unnecessarily verbose,
+it is more likely that users would instead write `X |> F(1, $)`. 
+
+As with Hack-style pipelines the right-hand operand of a Smart mix pipeline can be an arbitrary 
+expression, as long as it uses the topic variable.
+
+Smart mix pipelines suffer from the same caveats as Hack-style pipelines with respect to topic 
+variables, as well as a possible refactoring hazard when refactoring `F` in `X |> F`, into a more
+complex expression as there are certain expression forms which are forbidden in the tacit style and
+require conversion to the topic style.
 
 # Resources
 
