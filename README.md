@@ -297,7 +297,7 @@ const (_temp = a, _temp = f(_temp, 1), g(_temp, 2));
 
 While this proposal leverages the existing `?` token used in conditional expressions, it does not
 introduce parsing ambiguity as the `?` placeholder token can only be used in an argument list and 
-cannot have an expression immediately precedeing it (e.g. `f(a?` is definitely a conditional 
+cannot have an expression immediately preceding it (e.g. `f(a?` is definitely a conditional 
 while `f(?` is definitely a placeholder).
 
 # Grammar
