@@ -82,12 +82,14 @@ f(?, x, ?)        // partial application for any arg
 o.f(x, ?)         // partial application from left
 o.f(?, x)         // partial application from right
 o.f(?, x, ?)      // partial application for any arg
+super.f(?)        // partial application allowed for call on |SuperProperty|
 
 // invalid
 f(x + ?)          // `?` not in top-level Arguments of call
 x + ?             // `?` not in top-level Arguments of call
 ?.f()             // `?` not in top-level Arguments of call
 new f(?)          // `?` not supported in `new`
+super(?)          // `?` not supported in |SuperCall|
 ```
 
 # Semantics
@@ -229,7 +231,7 @@ CallMemberExpression[Yield, Await] :
   MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, +Partial]
 
 SuperCall[Yield, Await] :
-  `super` Arguments[?Yield, ?Await, +Partial]
+  `super` Arguments[?Yield, ?Await, ~Partial]
 
 Arguments[Yield, Await, Partial] :
   `(` ArgumentList[?Yield, ?Await, ?Partial] `)`
