@@ -251,6 +251,52 @@ ArgumentList[Yield, Await, Partial] :
   [+Partial] ArgumentList[?Yield, ?Await, ?Partial] `,` `?`
 ```
 
+# Examples
+
+**Logging with Timestamps**
+```js
+const log = console.log({ toString() { return `[${new Date()}]` } }, ?);
+log("test"); // [2018-07-17T23:25:36.984Z] test
+```
+
+**Event Handlers**
+```js
+button.addEventListener("click", this.onClick(?));
+```
+
+**Bound methods**
+```js
+class Collator {
+  constructor() {
+    this.compare = this.compare(?, ?);
+  }
+  compare(a, b) { ... }
+}
+```
+
+**Passing state through callbacks**
+```js
+// doWork expects a callback of `(err, value) => void`
+function doWork(callback) { ... }
+function onWorkCompleted(err, value, state) { ... }
+doWork(onWorkCompleted(?, ?, { key: "value" }));
+```
+
+**Uncurry `this`**
+```js
+const slice = Array.prototype.slice.call(?, ?, ?);
+slice({ 0: "a", 1: "b", length: 2 }, 1, 2); // ["b"]
+```
+
+**F#-style Pipelines**
+```js
+// AST transformation
+const newNode = createFunctionExpression(oldNode.name, visitNodes(oldNode.parameters), visitNode(oldNode.body))
+  |> setOriginalNode(?, oldNode)
+  |> setTextRange(?, oldNode.pos, oldNode.end)
+  |> setEmitFlags(?, EmitFlags.NoComments);
+```
+
 # Open Questions/Concerns
 
 ## The "garden path" 
