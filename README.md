@@ -114,7 +114,7 @@ is roughly identical in its behavior to:
 const g = (() => {
   const fn = f;
   const p0 = 1;
-  return (a0, a1, ...args) => fn(a0, p0, a1, ...args);
+  return (a0, a1) => fn(a0, p0, a1);
 })();
 ```
 
@@ -130,7 +130,7 @@ is roughly identical in its behavior to:
 const g = (() => {
   const fn = f;
   const tpl = /* template site object for `${?},${1},${?}` */;
-  return (a0, a1, ...args) => fn(p0, a0, tpl, a1, ...args);
+  return (a0, a1) => fn(p0, a0, tpl, a1);
 })();
 ```
 
@@ -150,7 +150,7 @@ const g = (() => {
   const receiver = o;
   const fn = o.f;
   const p0 = 1;
-  return (a0, ...args) => fn.call(receiver, a0, p0, ...args);
+  return (a0) => fn.call(receiver, a0, p0);
 })();
 ```
 
