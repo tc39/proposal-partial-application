@@ -111,9 +111,11 @@ const g = f(?, 1, ?);
 is roughly identical in its behavior to:
 
 ```js
-const $$temp0 = f;
-const $$temp1 = 1;
-const g = (_0, _1) => $$temp0(_0, $$temp1, _1);
+const g = (() => {
+  const fn = f;
+  const p0 = 1;
+  return (a0, a1) => fn(a0, p0, a1);
+})();
 ```
 
 As well, with template expressions:
@@ -125,10 +127,11 @@ const g = f`${?},${1},${?}`;
 is roughly identical in its behavior to:
 
 ```js
-const $$temp0 = f;
-const $$temp1 = /*template site object for `${?},${1},${?}`*/;
-const $$temp2 = 1;
-const g = (_0, _1) => $$temp0($$temp1, _0, $$temp2, _1);
+const g = (() => {
+  const fn = f;
+  const tpl = /* template site object for `${?},${1},${?}` */;
+  return (a0, a1) => fn(p0, a0, tpl, a1);
+})();
 ```
 
 In addition to fixing the function to be called and its explicit arguments, we also fix any 
@@ -143,8 +146,12 @@ const g = o.f(?, 1);
 is roughly identical in its behavior to:
 
 ```js
-const $$temp0 = o, $$temp1 = $$temp0.f, $$temp2 = 1;
-const g = (_0) => $$temp1.call($$temp0, _0, $$temp2);
+const g = (() => {
+  const receiver = o;
+  const fn = o.f;
+  const p0 = 1;
+  return (a0) => fn.call(receiver, a0, p0);
+})();
 ```
 
 In both of the above examples, excess supplied arguments to `g` are ignored and **not** passed on 
