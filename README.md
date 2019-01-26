@@ -37,7 +37,7 @@ const newScore = player.score
   |> _ => clamp(0, 100, _); // deeply nested stack, the pipe to `clamp` is *inside* the previous arrow function.
 ```
 
-However, there are several of limitations with these approaches:
+However, there are several limitations with these approaches:
 
 * `bind` can only fix the leading arguments of a function.
 * `bind` requires you explicitly specify the `this` receiver.
