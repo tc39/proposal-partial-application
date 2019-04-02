@@ -61,20 +61,12 @@ addTen(2); // 12
 let newScore = player.score
   |> add(7, ?)
   |> clamp(0, 100, ?); // shallow stack, the pipe to `clamp` is the same frame as the pipe to `add`.
-
-// partial template strings
-const Diagnostics = {
-  unexpected_token: `Unexpected token: ${?}`,
-  name_not_found: `'${?}' not found.`
-};
-Diagnostics.name_not_found("foo"); // "'foo' not found."
 ```
 
 # Syntax
 
 The `?` placeholder token can be supplied one or more times at the top level of the _Arguments_ of 
-a _CallExpression_, _CallMemberExpression_, or _SuperCall_ (e.g. `f(?)` or `o.f(?)`), or in place 
-of the _Expression_ of a _TemplateMiddleList_ (e.g. `` f`before${?}after` ``). `?` is **not**
+a _CallExpression_, _CallMemberExpression_, or _SuperCall_ (e.g. `f(?)` or `o.f(?)`). `?` is **not**
 an expression, rather it is a syntactic element that indicates special behavior (much like how 
 `` `...` AssignmentExpression `` indicates spread, yet is itself not an expression). 
 
@@ -98,8 +90,7 @@ super(?)          // `?` not supported in |SuperCall|
 
 # Semantics
 
-The `?` placeholder token can only be used in an argument list of a call expression, or as the only
-token in a placeholder of a template expression or tagged template expression. When present, the 
+The `?` placeholder token can only be used in an argument list of a call expression. When present, the 
 result of the call is a new function with a parameter for each `?` token in the argument list. 
 Any non-placeholder expression in the argument list becomes fixed in its position. This is 
 illustrated by the following syntactic conversion:
@@ -118,26 +109,9 @@ const g = (() => {
 })();
 ```
 
-As well, with template expressions:
-
-```js
-const g = f`${?},${1},${?}`;
-```
-
-is roughly identical in its behavior to:
-
-```js
-const g = (() => {
-  const fn = f;
-  const tpl = /* template site object for `${?},${1},${?}` */;
-  return (a0, a1) => fn(p0, a0, tpl, a1);
-})();
-```
-
 In addition to fixing the function to be called and its explicit arguments, we also fix any 
-supplied _receiver_ as part of the resulting function, as we will store the Reference in the 
-resulting function. As such, `o.f(?)` will maintain `o` as the `this` receiver when calling `o.f`. 
-This can be illustrated by the following syntactic conversion:
+supplied _receiver_ as part of the resulting function. As such, `o.f(?)` will maintain `o` as 
+the `this` receiver when calling `o.f`. This can be illustrated by the following syntactic conversion:
 
 ```js
 const g = o.f(?, 1);
@@ -148,7 +122,7 @@ is roughly identical in its behavior to:
 ```js
 const g = (() => {
   const receiver = o;
-  const fn = o.f;
+  const fn = receiver.f;
   const p0 = 1;
   return (a0) => fn.call(receiver, a0, p0);
 })();
@@ -225,11 +199,6 @@ while `f(?` is definitely a placeholder).
 # Grammar
 
 ```grammarkdown
-TemplateMiddleList[Yield, Await, Tagged] :
-  TemplateMiddle `?`
-  TemplateMiddle Expression[+In, ?Yield, ?Await]
-  TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
-
 MemberExpression[Yield, Await] :
   `new` MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~Partial]
 
@@ -354,6 +323,21 @@ g(2, 3, 4); // a: 2, b: 1, c: 3, d: 4
 
 However, there was some confusion and concern about using `...` twice in an argument list, 
 as well as how to get the _rest_ of the arguments as an array instead of spreading them.
+
+This is a feature we may revisit as a follow in proposal in the future. In the mean time,
+Arrow functions are a feasible alternative.
+
+## Support for template expressions
+
+At this time support for template expressions and tagged template expressions has been removed
+from this proposal to be considered as a future revision.
+
+Previously this proposal allowed a `?` placeholder in a template or tagged template expression:
+
+```js
+const f = `Hello ${?}!`;
+f("World"); // "Hello World!"
+```
 
 This is a feature we may revisit as a follow in proposal in the future. In the mean time,
 Arrow functions are a feasible alternative.
