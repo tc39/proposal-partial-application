@@ -130,7 +130,8 @@ is roughly identical in its behavior to:
 const g = (() => {
   const fn = f;
   const tpl = /* template site object for `${?},${1},${?}` */;
-  return (a0, a1) => fn(p0, a0, tpl, a1);
+  const p0 = 1;
+  return (a0, a1) => fn(tpl, a0, p0, a1);
 })();
 ```
 
