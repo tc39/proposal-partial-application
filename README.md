@@ -498,7 +498,7 @@ not actually difficult to read in most cases: `f~(?, a?.b ?? c)`.
 
 # Resources
 
-- [Overview Slides](https://rbuckton.github.io/proposal-partial-application/PartialApplication-tc39.pptx)
+- [Overview Slides](https://github.com/tc39/proposal-partial-application/raw/master/docs/PartialApplication-tc39.pptx)
 
 # TODO
 
