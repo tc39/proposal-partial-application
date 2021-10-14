@@ -459,7 +459,7 @@ You can also find a number of desugaring examples in [EXAMPLES.md](EXAMPLES.md).
 
 There have been suggestions to consider another token aside from `?`, given that optional
 chaining may be using `?.` and nullish coalesce may be using `??`. It is our opinion that
-such a token change is unnecessary, as `?` may _only_ be used on its on in an argument list
+such a token change is unnecessary, as `?` may _only_ be used on its own in an argument list
 and _may not_ be combined with these operators (e.g. `f~(??.a ?? c)` is not legal). The `?`
 token's visual meaning best aligns with this proposal, and its fairly easy to write similarly
 complex expressions today using existing tokens (e.g. `f(+i+++j-i---j)` or `f([[][]][[]])`).
