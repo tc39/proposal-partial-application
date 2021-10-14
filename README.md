@@ -347,28 +347,10 @@ The following is a list of additional semantic rules:
   * NOTE: This is not easily achievable with `.bind()` today (if at all).
 * Given `new (f~())`, the partial application of `f` returns a new function that can be constructed via `new`, similar
   to `new (f.bind(null))`.
-
-## Pipeline and Partial Application
-
-The [Pipeline Proposal](https://github.com/tc39/proposal-pipeline-operator) recently advanced to Stage 2 using the
-Hack-style for pipelines. While partial application was intended to dovetail with F#-style pipelines, this recent
-change does not diminish the value of partial application. In fact, the move to Hack-style mitigates the
-requirement that partial application *not* have a prefix token, which was a blocking concern from some members
-of TC39. That said, there is still a place for partial application in conjunction with pipeline:
-
-```js
-const add = (x, y) => x + y;
-const greaterThan = (x, y) => x > y;
-
-// using Hack-style pipes
-elements
-  |> map(^, add~(?, 1))
-  |> filter(^, greaterThan~(?, 5));
-```
-
-This creates a visual distinction between the topic variable in a Hack-style pipe (`^` currently, although that
-has not been finalized), a partial call (`~()`), and a placeholder argument (`?`) that should aid in readability
-and improve developer intuition about their code will evaluate.
+* Given `f?.~()` (a partially applied, optional call), if `f` is `null` or `undefined`, the result is `undefined`. Otherwise,
+  the result is the partial application of `f~()`.
+* Given `o?.f~()` (a partially applied call in an optional chain), if `o` is `null` or `undefined`, the result is `undefined`. 
+  Otherwise, the result is the partial application of `o.f~()`.
 
 # Parsing
 
@@ -381,6 +363,7 @@ while `f~(?` is definitely a placeholder).
 
 ```grammarkdown
 MemberExpression[Yield, Await] :
+  ...
   `new` MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, ~Partial]
 
 CallExpression[Yield, Await] :
@@ -394,6 +377,12 @@ CallMemberExpression[Yield, Await] :
 
 SuperCall[Yield, Await] :
   `super` Arguments[?Yield, ?Await, ~Partial]
+
+OptionalChain[Yield, Await] :
+  `?.` Arguments[?Yield, ?Await, +Partial]
+  ...
+  OptionalChain[?Yield, ?Await] Arguments[?Yield, ?Await, +Partial]
+  ...
 
 Arguments[Yield, Await, Partial] :
   `(` ArgumentList[?Yield, ?Await, ~Partial] `)`
@@ -452,6 +441,45 @@ slice({ 0: "a", 1: "b", length: 2 }, 1, 2); // ["b"]
 ```
 
 You can also find a number of desugaring examples in [EXAMPLES.md](EXAMPLES.md).
+
+# Relationships to Other Proposals/Language Features
+
+## Partial Application and Pipeline
+
+The [Pipeline Proposal](https://github.com/tc39/proposal-pipeline-operator) recently advanced to Stage 2 using the
+Hack-style for pipelines. While partial application was intended to dovetail with F#-style pipelines, this recent
+change does not diminish the value of partial application. In fact, the move to Hack-style mitigates the
+requirement that partial application *not* have a prefix token, which was a blocking concern from some members
+of TC39. That said, there is still a place for partial application in conjunction with pipeline:
+
+```js
+const add = (x, y) => x + y;
+const greaterThan = (x, y) => x > y;
+
+// using Hack-style pipes
+elements
+  |> map(^, add~(?, 1))
+  |> filter(^, greaterThan~(?, 5));
+```
+
+This creates a visual distinction between the topic variable in a Hack-style pipe (`^` currently, although that
+has not been finalized), a partial call (`~()`), and a placeholder argument (`?`) that should aid in readability
+and improve developer intuition about their code will evaluate.
+
+## Partial Application and Optional Chaining
+
+Partial Application is supported within an _OptionalChain_, per the [Semantics](#semantics) and [Grammar](#grammar) 
+sections, above. As partial application is tied to _Arguments_, the `~(` calling convention would follow `?.` in an 
+optional call:
+
+```js
+const maybeAddOne = add?.~(?, 1); // undefined | Function
+const maybeLog = console?.log~(?); // undefined | Function
+```
+
+Per the semantics of _OptionalChain_, in both of the examples above the `?.` token short-circuits evaluation of the 
+rest of the chain. As a result, if the _callee_ is nullish then the result of both expressions would be `undefined`.
+If the _callee_ is not nullish, then the result would be the partial application of the _callee_.
 
 # Open Questions/Concerns
 
