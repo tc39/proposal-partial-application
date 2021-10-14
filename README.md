@@ -109,6 +109,7 @@ f~(x + ?)         // `?` not in top-level Arguments of call
 x + ?             // `?` not in top-level Arguments of call
 ?.f~()            // `?` not in top-level Arguments of call
 super~(?)         // `?` not supported in |SuperCall|
+import~(?)        // `?` not supported in |ImportCall|
 ```
 
 In addition the `?` placeholder token can be followed by a decimal integer value &ge; 0 indicating a fixed
@@ -125,7 +126,7 @@ const swapAC = printArgs~(?2, ?, ?0);
 swapAC(1, 2, 3);                        // prints: 3, 2, 1
 
 const ignoreBC = printArgs~(?2);
-ignoreBC(1);                            // prints: 1, b, c
+ignoreBC(1, 2, 3);                       // prints: 3, b, c
 ```
 
 Ordinal placeholders are especially useful for adapting callbacks that expect arguments in a different order:
@@ -139,8 +140,8 @@ acceptBA(printAB~(?1, ?0));             // prints: a, b
 ## Fixed Arity
 
 By default, partial application uses a fixed argument list: Normal arguments are evaluated and bound
-to their respective argument position, and placeholder (`?`) arguments and Ordinal placeholder (`?0`, etc.)
-arguments are bound to specific argument positions in the resulting partially applied function. As a result,
+to their respective argument position, and placeholder arguments (`?`) and ordinal-placeholder arguments 
+(`?0`, etc.) are bound to specific argument positions in the resulting partially applied function. As a result,
 excess arguments passed to a partially applied function have no specific position in which they should be 
 inserted. While this behavior differs from `f.bind()`, a fixed argument list allows us to avoid unintentionally
 accepting excess arguments:
@@ -169,8 +170,8 @@ accepting excess arguments:
 ```
 
 In the example above, (a) prints extraneous information due to the fact that `forEach` not only passes the
-value of each element as an argument, but also the ordinal index of the element and the array in which the 
-element is contained.
+value of each element as an argument, but also the index of the element and the array in which the element
+is contained.
 
 In the case of (b), the arrow function has a fixed arity. No matter how many excess arguments are passed to
 the callback, only the `x` parameter is forwarded onto the call.
@@ -196,7 +197,19 @@ writeAppLogWithBreak("End of section");     // prints: [app] End of section\n---
 ```
 
 A partially applied call may only have a single `...` in its argument list, though it may spread in other arguments
-using `...expr` as you might in a normal call.
+using `...expr` as you might in a normal call:
+
+```js
+const arr = [1, 2, 3];
+
+// The following would be a SyntaxError as the `...` placeholder may only appear once:
+// const g = console.log~(?, ..., ...);
+
+// However, a normal spread is perfectly valid. Below, `...arr` will be evaluated immediately
+// and spread into the list of applied arguments:
+const g = console.log~(?, ...arr, ...);
+g("a", "b", "c");                           // prints: a, 1, 2, 3, b, c
+```
 
 # Semantics
 
@@ -241,7 +254,8 @@ const g = (() => {
 
 The following is a list of additional semantic rules:
 
-* Given `f~(?)`, the expression `f` is evaluated immediately.
+* Given `f~()`, the expression `f` evaluates immediately, returning a function that always calls the value of `f` with no parameters.
+* Given `f~(?)`, the expression `f` is evaluated immediately, returning a function that always calls the value of `f` with a single parameter.
 * Given `f~(?, x)`, the non-placeholder argument `x` is evaluated immediately and fixed in its position.
 * Given `f~(?)`, excess arguments supplied to the partially applied function result are ignored.
 * Given `f~(?, ?)` the partially applied function result will have a parameter for each placeholder 
@@ -255,52 +269,32 @@ The following is a list of additional semantic rules:
 * Given `o.f~(?)`, the references to `o` and `o.f` are evaluated immediately.
 * Given `o.f~(?)`, the `this` receiver of the function `o.f` is fixed as `o` in the partially 
   applied function result.
-* Given `f(g~(?))`, the result is roughly equivalent to `f(_0 => g(_0))` **not** `_0 => f(g(_0))`. This 
-  is because the `?` is directly part of the argument list of `g` and not the argument list of `f`.
 * Given `new C~()`, the result is a function that returns a new instance of `C`.
   * NOTE: This is not easily achievable with `.bind()` today (if at all).
 * Given `new (f~())`, the partial application of `f` returns a new function that can be constructed via `new`, similar
   to `new (f.bind(null))`.
 
-<!--
 ## Pipeline and Partial Application
 
-This proposal is designed to dove-tail into the pipeline operator (`|>`) proposal as a way to interop 
-with libraries like Lodash (which accepts lists from the front of the argument list), and Ramda (which 
-accepts lists from the end of the argument list):
+The [Pipeline Proposal](https://github.com/tc39/proposal-pipeline-operator) recently advanced to Stage 2 using the
+Hack-style for pipelines. While partial application was intended to dovetail with F#-style pipelines, this recent
+change does not diminish the value of partial application. In fact, the move to Hack-style mitigates the
+requirement that partial application *not* have a prefix token, which was a blocking concern from some members
+of TC39. That said, there is still a place for partial application in conjunction with pipeline:
 
 ```js
-// Underscore/lodash style:
-const result = books
-    |> filter(?, x => x.category === "programming");
+const add = (x, y) => x + y;
+const greaterThan = (x, y) => x > y;
 
-// Ramda style:
-const result = books
-    |> filter(x => x.category === "programming", ?);
+// using Hack-style pipes
+elements
+  |> map(^, add~(?, 1))
+  |> filter(^, greaterThan~(?, 5));
 ```
 
-It also allows you to pipeline into functions that expect lists to be the `this` argument:
-
-```js
-// bind style:
-const result = books
-    |> filter.call(?, x => x.category === "programming");
-```
-
-An efficient implementation can statically determine that a pipe into a partially applied function 
-could be reduced into fewer steps:
-
-```js
-const res = a |> f(?, 1) |> g(?, 2);
-```
-
-is approximately identical to:
-
-```js
-let $$temp;
-const res = ($$temp = a, $$temp = f($$temp, 1), g($$temp, 2));
-```
--->
+This creates a visual distinction between the topic variable in a Hack-style pipe (`^` currently, although that
+has not been finalized), a partial call (`~()`), and a placeholder argument (`?`) that should aid in readability
+and improve developer intuition about their code will evaluate.
 
 # Parsing
 
