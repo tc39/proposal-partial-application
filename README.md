@@ -1,8 +1,9 @@
 # Partial Application Syntax for ECMAScript
 
 This proposal introduces syntax for a new calling convention (using `~()`) to allow you to
-partially apply an argument list to a call or `new` expression through the use of a placeholder (`?`) 
-as an unbound argument.
+partially apply an argument list to a call or `new` expression through the combination of
+_applied arguments_ (actual values) and _placeholder arguments_ (unbound arguments that
+become parameters in the resulting _partially applied function_).
 
 ## Status
 
@@ -19,12 +20,12 @@ _For more information see the [TC39 proposal process](https://tc39.github.io/pro
 
 Partial function application allows you to fix a number of arguments to a function call, returning
 a new function. Partial application is supported after a fashion in ECMAScript today through the 
-use of either `Function#bind` or arrow functions:
+use of either `Function.prototype.bind` or arrow functions:
 
 ```js
 function add(x, y) { return x + y; }
 
-// Function#bind
+// Function.prototype.bind
 const addOne = add.bind(null, 1);
 addOne(2); // 3
 
@@ -35,22 +36,48 @@ addTen(2); // 12
 
 However, there are several of limitations with these approaches:
 
-* `bind` can only fix the leading arguments of a function.
-* `bind` requires you explicitly specify the `this` receiver.
-* Arrow functions lazily reevaluate their bodies, which can introduce unintended side-effects.
+* `Function.prototype.bind` can only fix the leading arguments of a function.
+* `Function.prototype.bind` requires you explicitly specify the `this` receiver.
+* Arrow functions lazily re-evaluate their bodies, which can introduce unintended side-effects.
 
-To resolve these concerns, we propose the introduction of a new calling convention using `~()`, 
-leveraging the `?` token to act as an "argument placeholder" for a non-fixed argument, and the
-`...` token to act as a "remaining arguments placeholder" for any excess arguments:
+To resolve these concerns, we propose the introduction of the following new language features:
+
+- A new calling convention, `~()`, to indicate a _partial application_ of a call or `new` expression which
+  results in a _partially applied function_.
+- Using the `?` token to act as a _placeholder argument_ for any non-fixed argument in a _partial application_.
+- Using the `?` token followed by a decimal integer literal (i.e., `?0`) to act as an _ordinal
+  placeholder argument_ for non-fixed arguments bound to a specific ordinal parameter in the resulting _partially
+  applied function_.
+- Using the `...` token to act as a _rest placeholder argument_ for any excess arguments.
 
 ```js
-const addOne = add~(1, ?); // apply from the left
+const add = (x, y) => x + y;
+const identity = x => x;
+
+// apply from the left:
+const addOne = add~(1, ?);
 addOne(2); // 3
 
-const addTen = add~(?, 10); // apply from the right
+// apply from the right:
+const addTen = add~(?, 10);
 addTen(2); // 12
 
-[1, 2, 3].forEach(console.log~(?)); // accepts exactly one argument
+// accept a fixed argument list:
+const numbers = ["1", "2", "3"].map(parseInt~(?, 10)); // [1, 2, 3]
+
+// specify ordinal placeholder arguments:
+const indices = [1, 2, 3].map(identity~(?1)); // [0, 1, 2]
+
+// bind `console` as receiver and accepts exactly one argument:
+[1, 2, 3].forEach(console.log~(?));
+// prints:
+// 1
+// 2
+// 3
+
+// emulate n-ary arguments like Function.prototype.bind:
+const logger = console.log~("[service]", ...);
+logger("foo", "bar"); // prints: [service] foo bar
 ```
 
 # Syntax
@@ -59,16 +86,17 @@ addTen(2); // 12
 
 A partially applied call uses a separate calling convention than a normal call. Instead of using `()`
 to call or construct a value, you initiate a partial call using `~()`. A partially applied call without
-placeholders essentially binds any provided arguments into a new function. If the expression being invoked
-produces a _Reference_, the `this` binding of the _Reference_ is preserved. Excess arguments supplied to 
-the resulting function are ignored.
+a placeholder argument essentially fixes any provided arguments into a new function. If the expression being
+invoked produces a _Reference_, the `this` binding of the _Reference_ is preserved. Excess arguments supplied 
+to the resulting function are ignored by default (for more information, see [Fixed Arity](#fixed-arity) and
+[Variable Arity](#variable-arity-pass-through-remaining-arguments-using-) later on in this document).
 
 ```js
 const sayNothing = console.log~();
 const sayHi = console.log~("Hello!");
 
 sayNothing();       // prints:
-sayNothing("Shhh"); // prints: 
+sayNothing("Shhh"); // prints:
 
 sayHi();            // prints: Hello!
 
@@ -88,10 +116,10 @@ and nullish function evaluation (i.e., `f?.()`).
 
 ## The `?` Placeholder Argument
 
-The `?` placeholder argument can be supplied one or more times at the top level of the argument list of
-a _CallExpression_, _CallMemberExpression_, or `new` (e.g. `f~(?)` or `o.f~(?)`). `?` is **not**
-an expression, rather it is a syntactic element that indicates special behavior (much like how
-`` `...` AssignmentExpression `` indicates spread, yet is itself not an expression).
+The `?` _Placeholder Argument_ can be supplied one or more times at the top level of the argument list of
+a call or `new` expression (e.g. `f~(?)` or `o.f~(?)`). `?` is **not** an expression, rather it is a
+syntactic element that indicates special behavior (much like how `` `...` AssignmentExpression `` indicates
+spread, yet is itself not an expression).
 
 ```js
 // valid
@@ -114,8 +142,8 @@ import~(?)        // `?` not supported in |ImportCall|
 
 ## The `?0` (`?1`, `?2`, etc.) Ordinal Placeholder Argument
 
-The `?` token can be followed by a decimal integer value &ge; 0 indicating a fixed ordinal position (i.e., `?0`) 
-denoting an Ordinal Placeholder Argument. Ordinal placeholder arguments are especially useful for adapting 
+The `?` token can be followed by a decimal integer value &ge; 0 indicating a fixed ordinal position (i.e., `?0`)
+denoting an _Ordinal Placeholder Argument_. Ordinal placeholder arguments are especially useful for adapting
 existing functions to be used as callbacks to other functions expect arguments in a different order:
 
 ```js
@@ -133,9 +161,9 @@ const dup = add(?0, ?0);
 console.log(dup(3));                       // prints: 6
 ```
 
-Non-ordinal placeholder arguments are implicitly ordered sequentially from left to right. This means that an 
-expression like `f~(?, ?)` is essentially equivalent to `f~(?0, ?1)`. If a partial application contains a mix 
-of ordinal placeholder arguments and non-ordinal placeholder arguments, ordinal placeholder arguments 
+Non-ordinal placeholder arguments are implicitly ordered sequentially from left to right. This means that an
+expression like `f~(?, ?)` is essentially equivalent to `f~(?0, ?1)`. If a partial application contains a mix
+of ordinal placeholder arguments and non-ordinal placeholder arguments, ordinal placeholder arguments
 do not affect the implicit order assigned to non-ordinal placeholder arguments:
 
 ```js
@@ -152,7 +180,7 @@ printCxx(1, 2, 3);                         // prints: 3, arg1, arg2
 ```
 
 By having ordinal placeholder arguments independent of the ordering for non-ordinal placeholder arguments, we
-avoid refactoring hazards due to inserting a new ordinal placeholder into an existing partial application:
+avoid refactoring hazards due to the insertion a new ordinal placeholder into an existing partial application:
 
 ```js
   // NOTE:
@@ -162,11 +190,11 @@ avoid refactoring hazards due to inserting a new ordinal placeholder into an exi
   // before
   const g = f~(?, ?, ?);                   // equivalent to: f~(?0, ?1, ?2)
 
-  // insert ordinal placeholder at beginning:
+  // insert ordinal placeholder argument at beginning:
   const g = f~(?2, ?, ?, ?);               // equivalent to: f~(?2, ?0, ?1, ?2)
 //             ^^  =======                                      ^^  ==========
 
-  // insert ordinal placeholder in middle:
+  // insert ordinal placeholder argument in middle:
   const g = f~(?, ?, ?0, ?);               // equivalent to: f~(?0, ?1, ?0, ?2)
 //             ====  ^^  =                                      ======  ^^  ==
 ```
@@ -210,28 +238,34 @@ is contained.
 In the case of (b), the arrow function has a fixed arity. No matter how many excess arguments are passed to
 the callback, only the `x` parameter is forwarded onto the call.
 
-The intention of partial application is to emulate a normal call like `console.log("element:", 1)`, where 
-evaluation of the "applied" portions occurs eagerly with only the placeholders being "unapplied". This means 
-that excess arguments have no place to go as part of evaluation. As a result, (c) behaves similar to (b) in 
-that only a single argument is accepted by the partial function application and passed through to `console.log`.
+The intention of partial application is to emulate a normal call like `console.log("element:", 1)`, where
+evaluation of the "applied" portions occurs eagerly with only the placeholder arguments being "unapplied".
+This means that excess arguments have no place to go as part of evaluation. As a result, (c) behaves similar
+to (b) in that only a single argument is accepted by the partial function application and passed through to
+`console.log`.
 
 ## Variable Arity: Pass Through Remaining Arguments using `...` 
 
-However, sometimes you may need the variable arity of something like `f.bind()`. To support this, partial
-application includes a `...` placeholder token with a specific meaning: Take the _rest_ of the arguments
-supplied to the partial function and _spread_ them into this position:
+However, sometimes you may need the variable arity provided by `Function.prototype.bind`. To support this,
+partial application includes a `...` _rest placeholder argument_ with a specific meaning: Take the _rest_ of
+the arguments supplied to the partial function and _spread_ them into this position:
 
 ```js
 const writeLog = (header, ...args) => console.log(header, ...args);
 const writeAppLog = writeLog~("[app]", ...);
-writeAppLog("Hello", "World!");             // prints: [app] Hello World!
+writeAppLog("Hello", "World!");
+// prints:
+// [app] Hello World!
 
-const writeAppLogWithBreak = writeAppLog~(..., "\n---\n");
-writeAppLogWithBreak("End of section");     // prints: [app] End of section\n---\n
+const writeAppLogWithBreak = writeAppLog~(..., "\n---");
+writeAppLogWithBreak("End of section");
+// prints:
+// [app] End of section
+// ---
 ```
 
-A partially applied call may only have a single `...` in its argument list, though it may spread in other arguments
-using `...expr` as you might in a normal call:
+A partial application may only have a single `...` rest placeholder argument in its argument list, though it
+may spread in other values using `...expr` as you might in a normal call:
 
 ```js
 const arr = [1, 2, 3];
@@ -247,11 +281,11 @@ g("a", "b", "c");                           // prints: a, 1, 2, 3, b, c
 
 # Semantics
 
-A call or `new` expression that uses the `~()` calling convention results in a partially applied call. The result
-is a new function with a parameter for each placeholder (i.e., `?`, `?0`, etc.) in the argument list. If
-the partial call contains a `...` placeholder token, a rest parameter is added as the final parameter of the
-new function. Any non-placeholder expression in the argument list becomes fixed in their positions. This is 
-illustrated by the following syntactic conversion:
+A call or `new` expression that uses the `~()` calling convention results in a _partially applied function_.
+This result is a new function with a parameter for each _placeholder argument_ (i.e., `?`, `?0`, etc.) in the
+argument list. If the partial application contains a `...` _rest placeholder argument_, a rest parameter is
+added as the final parameter of the resulting _partially applied function_. Any non-placeholder arguments in
+the argument list becomes fixed in their positions. This is illustrated by the following syntactic conversion:
 
 ```js
 const g = f~(?, 1, ?);
@@ -261,15 +295,18 @@ is roughly identical in its behavior to:
 
 ```js
 const g = (() => {
-  const fn = f;
-  const p0 = 1;
-  return (a0, a1) => fn(a0, p0, a1);
+  // applied values
+  const _callee = f;
+  const _applied0 = 1;
+
+  // partially applied function
+  return function (_0, _1) { return _callee(_0, _applied0, _1); };
 })();
 ```
 
-In addition to fixing the function to be called and its explicit arguments, we also fix the callee and
-any supplied _receiver_ as part of the resulting function. As such, `o.f~(?)` will maintain `o` as the 
-`this` receiver when calling `o.f`. This can be illustrated by the following syntactic conversion:
+In addition to fixing the _callee_ and any _applied arguments_, we also fix the the `this` _receiver_ in the
+resulting _partially applied function_. As such, `o.f~(?)` will maintain `o` as the `this` receiver when calling
+`o.f`. This can be illustrated by the following syntactic conversion:
 
 ```js
 const g = o.f~(?, 1);
@@ -279,17 +316,20 @@ is roughly identical in its behavior to:
 
 ```js
 const g = (() => {
-  const receiver = o;
-  const fn = receiver.f;
-  const p0 = 1;
-  return (a0) => fn.call(receiver, a0, p0);
+  // applied values
+  const _receiver_ = o;
+  const _callee = _receiver_.f;
+  const _applied0 = 1;
+
+  // partially applied function
+  return function (_0) { return _callee.call(_receiver_, _0, _applied0); };
 })();
 ```
 
 The following is a list of additional semantic rules:
 
-* Given `f~()`, the expression `f` evaluates immediately, returning a function that always calls the value of `f` with no parameters.
-* Given `f~(?)`, the expression `f` is evaluated immediately, returning a function that always calls the value of `f` with a single parameter.
+* Given `f~()`, the expression `f` is evaluated immediately, returning a _partially applied function_ that always calls the value of `f` with no parameters.
+* Given `f~(?)`, the expression `f` is evaluated immediately, returning a _partially applied function_ with a single parameter that always calls the value of `f` with that parameter as its sole argument.
 * Given `f~(?, x)`, the non-placeholder argument `x` is evaluated immediately and fixed in its position.
 * Given `f~(?)`, excess arguments supplied to the partially applied function result are ignored.
 * Given `f~(?, ?)` the partially applied function result will have a parameter for each placeholder 
@@ -378,7 +418,7 @@ ArgumentList[Yield, Await, Partial] :
 
 **Logging with Timestamps**
 ```js
-const log = console.log~({ toString() { return `[${new Date()}]` } }, ?);
+const log = console.log~({ toString() { return `[${new Date().toISOString()}]` } }, ?);
 log("test"); // [2018-07-17T23:25:36.984Z] test
 ```
 
@@ -425,6 +465,36 @@ token's visual meaning best aligns with this proposal, and its fairly easy to wr
 complex expressions today using existing tokens (e.g. `f(+i+++j-i---j)` or `f([[][]][[]])`).
 A valid, clean example of both partial application, optional chaining, and nullish coalesce is
 not actually difficult to read in most cases: `f~(?, a?.b ?? c)`.
+
+# Definitions
+
+- _Partial Application_ &mdash; A call or `new` expression with zero or more _placeholder arguments_, where _applied expressions_ are immediately evaluated and _fixed_ in their respective positions in the invocation.  
+  A _partial application_ is denoted by an argument list surrounded by `~()`  
+  Example: `f~()`
+- _Partially Applied Function_ &mdash; A function that is the result of a _partial application_.
+- _Applied Expressions_ &mdash; The _callee_, _receiver_, and any _non-placeholder arguments_ of a _partial application_.  
+  Also: _applied_.  
+  Antonyms: _unapplied_.
+- _Callee_ &mdash; The value of the function or method to be invoked (for a call) or instantiated (for `new` expressions).
+- _Receiver_ &mdash; If the _Callee_ is a method invocation, the _receiver_ is the object that will be passed to the call as its `this` binding.
+- _Fix_ &mdash; Eagerly evaluate an expression and store its position within a _partially application_.  
+  Also: _fixed_, _fixing_.
+- _Non-Placeholder Argument_ &mdash; An _Applied Expression_ that takes up an entire argument position.
+- _Placeholder Argument_ &mdash; An argument that is not yet _applied_ in a _partial application_. A _placeholder argument_ results in 
+  one or more parameter bindings in a resulting _partially applied function_.
+- _Non-Ordinal Placeholder Argument_ &mdash; A _placeholder argument_ representing a single unapplied argument. _Non-ordinal placeholder 
+  arguments_ are implicitly ordered sequentially from left to right.  
+  A _non-ordinal placeholder argument_ is denoted by a `?` token that takes up an entire an argument position.  
+  Example: `f~(?)`
+- _Ordinal Placeholder Argument_ &mdash; A _placeholder argument_ representing a single unapplied argument with a specified ordinal position
+  in the parameter list of the resulting _partially applied function_.  
+  An _ordinal placeholder argument_ is denoted by a `?` token followed by an unsigned integer indicating the ordinal position of the 
+  resulting parameter.  
+  Example: `f~(?1, ?0)`
+- _Rest Placeholder Argument_ &mdash; A _placeholder argument_ representing any excess arguments passed to the resulting _partially applied
+  function_.  
+  A _rest placeholder argument_ is denoted by a `...` token that takes up an entire argument position.  
+  Example: `f~(...)`
 
 # Resources
 
