@@ -377,16 +377,7 @@ const slice = Array.prototype.slice.call~(?, ?, ?);
 slice({ 0: "a", 1: "b", length: 2 }, 1, 2); // ["b"]
 ```
 
-<!--
-**F#-style Pipelines**
-```js
-// AST transformation
-const newNode = createFunctionExpression(oldNode.name, visitNodes(oldNode.parameters), visitNode(oldNode.body))
-  |> setOriginalNode(?, oldNode)
-  |> setTextRange(?, oldNode.pos, oldNode.end)
-  |> setEmitFlags(?, EmitFlags.NoComments);
-```
--->
+You can also find a number of desugaring examples in [EXAMPLES.md](EXAMPLES.md).
 
 # Open Questions/Concerns
 
@@ -400,94 +391,6 @@ token's visual meaning best aligns with this proposal, and its fairly easy to wr
 complex expressions today using existing tokens (e.g. `f(+i+++j-i---j)` or `f([[][]][[]])`).
 A valid, clean example of both partial application, optional chaining, and nullish coalesce is
 not actually difficult to read in most cases: `f~(?, a?.b ?? c)`.
-
-<!--
-## Relation to the Pipeline Operator
-
-While useful in its own right, partial application was initially envisioned alongside the 
-pipeline operator (`|>`) as a means of piping the left-hand operand into a specific argument 
-position in a function call on the right-hand operand.
-
-However, there are currently three competing proposals for pipeline:
-
-1. F#-style pipelines (which this proposal favors).
-1. Hack-style pipelines
-1. "Smart mix" pipelines
-
-### F#-style pipelines
-
-An F#-style pipeline is represented by the expression `X |> F`, in which `X` and then `F` are 
-evaluated, and the result of `F(X)` is returned. In general, this is a fairly simple set of
-rules to explain.
-
-Partial application can also be easily explained in terms of `F.bind()`, except that you have 
-more control over which arguments are bound and which are unbound.
-
-These two building blocks can then be used to form more complex expressions. For example, in the
-expression `X |> F(a, ?)`, `X` is evaluated, followed by `F`, and `a`, and then the result of 
-`F(a, X)` is returned.
-
-While F#-style pipelines are easily explained, there are caveats regarding their execution. 
-As they are designed to pipe function calls, other expression forms are not supported without
-leveraging something like an Arrow function. It also requires a special syntactic form to 
-support `await` in the middle of an F#-style pipeline, and `yield`/`yield*` is not supported
-at all.
-
-This proposal heavily favors the F#-style pipeline approach as it complements partial 
-application and is easier to teach both as individual components of the language that can
-be composed together for greater effect.
-
-### Hack-style pipelines
-
-A Hack-style pipeline is represented by the expression `X |> F($)`, in which `X` is evaluated
-and stored in a "topic variable" (in this example, `$`), then `F` is evaluated, and the result
-of `F($)` is returned.
-
-Since the right-hand operand of a Hack-style pipeline can be an arbitrary expression, it is
-farily easy to perform in-situ calculations (i.e. `X |> $ + $`), as well as support operators
-such as `await` and `yield`/`yield*`.
-
-While Hack-style pipelines are very flexible, they do not support tacit, point-free pipelines
-such as `X |> F`, as you must use the topic variable to pass the value. Also, topic variables
-have various caveats. Topic variables that are _also_ valid identifiers can shadow identifiers
-declared in an outer scope. This is problematic as the most common topic variables in other 
-languages are tokens like `$` or `_`, which are both the default names of highly popular
-libraries (i.e. jQuery, underscore, lodash). As such, it is currently in proposal to use a 
-non-identifier token as the topic. 
-
-Topic variables also can be difficult to use if you introduce a nested scope that has the topic 
-variable in scope, especially if you intend to reference an outer topic variable within a 
-pipeline in a nested scope. This complication still arises even when using a non-identifier 
-token as the topic.
-
-Also, Hack-style pipelines are already feasible _without_ introducing new syntax today:
-
-```js
-let $; // Hack-style topic variable
-let result = (
-  $= books,
-  $= filter($, _ => _.title = "..."),
-  $= map($, _ => _.author),
-  $);
-```
-
-### "Smart mix" pipelines
-
-"Smart mix" pipelines are represented by _either_ `X |> F` (where `F` _may not_ have parenthesis), 
-or `X |> F($)`. Smart mix pipelines are designed to support _both_ Hack-style pipelines with a 
-topic variable, as well as tacit point-free pipelines. Smart-mix pipelines would effectively 
-forbid the use of partial application in a pipeline, as any right-hand operand expression with
-parenthesis _must_ use the topic variable. Since `X |> F(1, ?)($)` is unnecessarily verbose,
-it is more likely that users would instead write `X |> F(1, $)`. 
-
-As with Hack-style pipelines the right-hand operand of a Smart mix pipeline can be an arbitrary 
-expression, as long as it uses the topic variable.
-
-Smart mix pipelines suffer from the same caveats as Hack-style pipelines with respect to topic 
-variables, as well as a possible refactoring hazard when refactoring `F` in `X |> F`, into a more
-complex expression as there are certain expression forms which are forbidden in the tacit style and
-require conversion to the topic style.
--->
 
 # Resources
 
