@@ -88,7 +88,7 @@ and nullish function evaluation (i.e., `f?.()`).
 
 ## The `?` Placeholder Argument
 
-The `?` placeholder token can be supplied one or more times at the top level of the argument list of
+The `?` placeholder argument can be supplied one or more times at the top level of the argument list of
 a _CallExpression_, _CallMemberExpression_, or `new` (e.g. `f~(?)` or `o.f~(?)`). `?` is **not**
 an expression, rather it is a syntactic element that indicates special behavior (much like how
 `` `...` AssignmentExpression `` indicates spread, yet is itself not an expression).
@@ -112,29 +112,63 @@ super~(?)         // `?` not supported in |SuperCall|
 import~(?)        // `?` not supported in |ImportCall|
 ```
 
-In addition the `?` placeholder token can be followed by a decimal integer value &ge; 0 indicating a fixed
-ordinal position (i.e., `?0`). Ordinal placeholders can be repeated multiple times within a partial application,
-but still point to the same unbound argument. If a partial application contains a mix of non-ordinal placeholders 
-and ordinal placeholders, the non-ordinal placeholders are implicitly numbered to fill in any gaps:
+## The `?0` (`?1`, `?2`, etc.) Ordinal Placeholder Argument
 
-```js
-const printArgs = (a = "a", b = "b", c = "c") => console.log(`${a}, ${b}, ${c}`);
-printArgs();                            // prints: a, b, c
-printArgs(1, 2, 3);                     // prints: 1, 2, 3
-
-const swapAC = printArgs~(?2, ?, ?0);
-swapAC(1, 2, 3);                        // prints: 3, 2, 1
-
-const ignoreBC = printArgs~(?2);
-ignoreBC(1, 2, 3);                       // prints: 3, b, c
-```
-
-Ordinal placeholders are especially useful for adapting callbacks that expect arguments in a different order:
+The `?` token can be followed by a decimal integer value &ge; 0 indicating a fixed ordinal position (i.e., `?0`) 
+denoting an Ordinal Placeholder Argument. Ordinal placeholder arguments are especially useful for adapting 
+existing functions to be used as callbacks to other functions expect arguments in a different order:
 
 ```js
 const printAB = (a, b) => console.log(`${a}, ${b}`);
 const acceptBA = (cb) => cb("b", "a");
-acceptBA(printAB~(?1, ?0));             // prints: a, b
+acceptBA(printAB~(?1, ?0));                // prints: a, b
+```
+
+In addition, ordinal placeholder arguments can be repeated multiple times within a partial application,
+allowing repeated references to the same argument value:
+
+```js
+const add = (x, y) => x + y;
+const dup = add(?0, ?0);
+console.log(dup(3));                       // prints: 6
+```
+
+Non-ordinal placeholder arguments are implicitly ordered sequentially from left to right. This means that an 
+expression like `f~(?, ?)` is essentially equivalent to `f~(?0, ?1)`. If a partial application contains a mix 
+of ordinal placeholder arguments and non-ordinal placeholder arguments, ordinal placeholder arguments 
+do not affect the implicit order assigned to non-ordinal placeholder arguments:
+
+```js
+const printABC = (a = "arg0", b = "arg1", c = "arg2") => console.log(`${a}, ${b}, ${c}`);
+printABC(1, 2, 3);                         // prints: 1, 2, 3
+printABC();                                // prints: arg0, arg1, arg2
+
+const printCAA = printABC~(?2, ?, ?0);     // equivalent to: printABC~(?2, ?0, ?0)
+printCAA(1, 2, 3);                         // prints: 3, 1, 1
+printCAA(1, 2);                            // prints: arg0, 1, 1
+
+const printCxx = printABC~(?2);
+printCxx(1, 2, 3);                         // prints: 3, arg1, arg2
+```
+
+By having ordinal placeholder arguments independent of the ordering for non-ordinal placeholder arguments, we
+avoid refactoring hazards due to inserting a new ordinal placeholder into an existing partial application:
+
+```js
+  // NOTE:
+  // `^` - inserted
+  // `=` - existing
+
+  // before
+  const g = f~(?, ?, ?);                   // equivalent to: f~(?0, ?1, ?2)
+
+  // insert ordinal placeholder at beginning:
+  const g = f~(?2, ?, ?, ?);               // equivalent to: f~(?2, ?0, ?1, ?2)
+//             ^^  =======                                      ^^  ==========
+
+  // insert ordinal placeholder in middle:
+  const g = f~(?, ?, ?0, ?);               // equivalent to: f~(?0, ?1, ?0, ?2)
+//             ====  ^^  =                                      ======  ^^  ==
 ```
 
 ## Fixed Arity
