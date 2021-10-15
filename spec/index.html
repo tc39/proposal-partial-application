@@ -249,7 +249,7 @@
                 1. Set _position_ to _position_ + 1
               1. Else, if _arg_.[[Kind]] is ~ordinal~, then
                 1. Let _ordinal_ be _arg_.[[Ordinal]].
-                1. If _ordinal_ &gt; _maxPosition_, set _maxPosition_ to _ordinal_.
+                1. If _ordinal_ + 1 &gt; _maxPosition_, set _maxPosition_ to _ordinal_ + 1.
             1. Set _i_ to _i_ + 1.
           1. If _position_ &gt; _maxPosition_, set _maxPosition_ to _position_.
           1. Let _position_ be 0.
