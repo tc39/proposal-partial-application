@@ -910,7 +910,17 @@ const g = (
 
 ## Constructors
 
-The following examples illustrate partial application of constructor intantiation.
+The following examples illustrate partial application of constructor intantiation. To emulate `Function.prototype.bind` semantics with respect to
+`.name` and `.prototype`, each desugaring below uses the following additional utility function:
+
+```js
+const __partialConstructor = (partial, base) => {
+  partial.prototype = undefined;
+  Object.setPrototypeOf(partial, base);
+  Object.defineProperty(partial, "name", Object.getOwnPropertyDescriptor(base, "name"));
+  return partial;
+};
+```
 
 ### `new C~()`
 
@@ -921,7 +931,7 @@ const g = new C~();
 // desugared
 const g = (
   function (_callee) {
-    return function () { return new _callee(); };
+    return __partialConstructor(function () { return new _callee(); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -935,7 +945,7 @@ const g = new C~(x);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function () { return new _callee(_fixed0); };
+    return __partialConstructor(function () { return new _callee(_fixed0); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ x);
 ```
@@ -949,7 +959,7 @@ const g = new C~(...x);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function () { return new _callee(..._fixed0); };
+    return __partialConstructor(function () { return new _callee(..._fixed0); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ [...x]);
 ```
@@ -963,7 +973,7 @@ const g = new C~(?);
 // desugared
 const g = (
   function (_callee) {
-    return function (_0) { return new _callee(_0); };
+    return __partialConstructor(function (_0) { return new _callee(_0); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -977,7 +987,7 @@ const g = new C~(?, x);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function (_0) { return new _callee(_0, _fixed0); };
+    return __partialConstructor(function (_0) { return new _callee(_0, _fixed0); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ x);
 ```
@@ -991,7 +1001,7 @@ const g = new C~(x, ?);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function (_0) { return new _callee(_fixed0, _0); };
+    return __partialConstructor(function (_0) { return new _callee(_fixed0, _0); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ x);
 ```
@@ -1005,7 +1015,7 @@ const g = new C~(x, ?);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function (_0) { return new _callee(..._fixed0, _0); };
+    return __partialConstructor(function (_0) { return new _callee(..._fixed0, _0); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ [...x]);
 ```
@@ -1019,7 +1029,7 @@ const g = new C~(?0);
 // desugared
 const g = (
   function (_callee) {
-    return function (_0) { return new _callee(_0); };
+    return __partialConstructor(function (_0) { return new _callee(_0); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -1033,7 +1043,7 @@ const g = new C~(?1);
 // desugared
 const g = (
   function (_callee) {
-    return function (/*unused*/ _0, _1) { return new _callee(_1); };
+    return __partialConstructor(function (/*unused*/ _0, _1) { return new _callee(_1); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -1047,7 +1057,7 @@ const g = new C~(?1, ?);
 // desugared
 const g = (
   function (_callee) {
-    return function (_0, _1) { return new _callee(_1, _0); };
+    return __partialConstructor(function (_0, _1) { return new _callee(_1, _0); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -1061,7 +1071,7 @@ const g = new C~(?1, ?0);
 // desugared
 const g = (
   function (_callee) {
-    return function (_0, _1) { return new _callee(_1, _0); };
+    return __partialConstructor(function (_0, _1) { return new _callee(_1, _0); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -1075,7 +1085,7 @@ const g = new C~(?1, x);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function (/*unused*/ _0, _1) { return new _callee(_1, _fixed0); };
+    return __partialConstructor(function (/*unused*/ _0, _1) { return new _callee(_1, _fixed0); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ x);
 ```
@@ -1089,7 +1099,7 @@ const g = new C~(...);
 // desugared
 const g = (
   function (_callee) {
-    return function (..._args) { return new _callee(..._args); };
+    return __partialConstructor(function (..._args) { return new _callee(..._args); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -1103,7 +1113,7 @@ const g = new C~(x, ...);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function (..._args) { return new _callee(_fixed0, ..._args); };
+    return __partialConstructor(function (..._args) { return new _callee(_fixed0, ..._args); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ x);
 ```
@@ -1117,7 +1127,7 @@ const g = new C~(..., x);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function (..._args) { return new _callee(..._args, _fixed0); };
+    return __partialConstructor(function (..._args) { return new _callee(..._args, _fixed0); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ x);
 ```
@@ -1131,7 +1141,7 @@ const g = new C~(?, ...);
 // desugared
 const g = (
   function (_callee) {
-    return function (_0, ..._args) { return new _callee(_0, ..._args); };
+    return __partialConstructor(function (_0, ..._args) { return new _callee(_0, ..._args); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -1145,7 +1155,7 @@ const g = new C~(..., ?);
 // desugared
 const g = (
   function (_callee) {
-    return function (_0, ..._args) { return new _callee(..._args, _0); };
+    return __partialConstructor(function (_0, ..._args) { return new _callee(..._args, _0); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -1159,7 +1169,7 @@ const g = new C~(?, x, ...);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function (_0, ..._args) { return new _callee(_0, _fixed0, ..._args); };
+    return __partialConstructor(function (_0, ..._args) { return new _callee(_0, _fixed0, ..._args); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ x);
 ```
@@ -1173,7 +1183,7 @@ const g = new C~(..., x, ?);
 // desugared
 const g = (
   function (_callee, _fixed0) {
-    return function (_0, ..._args) { return new _callee(..._args, _fixed0, _0); };
+    return __partialConstructor(function (_0, ..._args) { return new _callee(..._args, _fixed0, _0); }, _callee);
   }
 )(/*_callee*/ C, /*_fixed0*/ x);
 ```
@@ -1187,7 +1197,7 @@ const g = new C~(?1, ...);
 // desugared
 const g = (
   function (_callee) {
-    return function (/*unused*/ _0, _1, ..._args) { return new _callee(_1, ..._args); };
+    return __partialConstructor(function (/*unused*/ _0, _1, ..._args) { return new _callee(_1, ..._args); }, _callee);
   }
 )(/*_callee*/ C);
 ```
@@ -1201,7 +1211,7 @@ const g = new C~(..., ?1);
 // desugared
 const g = (
   function (_callee) {
-    return function (/*unused*/ _0, _1, ..._args) { return new _callee(..._args, _1); };
+    return __partialConstructor(function (/*unused*/ _0, _1, ..._args) { return new _callee(..._args, _1); }, _callee);
   }
 )(/*_callee*/ C);
 ```
