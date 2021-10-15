@@ -529,7 +529,7 @@ not actually difficult to read in most cases: `f~(?, a?.b ?? c)`.
 
 # Resources
 
-- [Overview Slides](https://raw.githubusercontent.com/tc39/proposal-partial-application/main/docs/PartialApplication-tc39.pptx)
+- [Overview Slides](https://raw.githubusercontent.com/tc39/proposal-partial-application/main/assets/PartialApplication-tc39.pptx)
 
 # TODO
 
@@ -544,7 +544,7 @@ The following is a high-level list of tasks to progress through each stage of th
 
 ### Stage 2 Entrance Criteria
 
-* [ ] [Initial specification text][Specification].  
+* [x] [Initial specification text][Specification].  
 * [ ] _Optional_. [Transpiler support][Transpiler].  
 
 ### Stage 3 Entrance Criteria
@@ -565,7 +565,7 @@ The following is a high-level list of tasks to progress through each stage of th
 [Champion]: #status
 [Prose]: #proposal
 [Examples]: #examples
-[Specification]: #todo
+[Specification]: https://tc39.es/proposal-partial-application
 [Transpiler]: #todo
 [Stage3ReviewerSignOff]: #todo
 [Stage3EditorSignOff]: #todo
