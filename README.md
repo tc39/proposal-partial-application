@@ -345,6 +345,9 @@ The following is a list of additional semantic rules:
   applied function result.
 * Given `new C~()`, the result is a function that returns a new instance of `C`.
   * NOTE: This is not easily achievable with `.bind()` today (if at all).
+* Given `const g = new C~()`, `g.name` is `"bound C"`.
+* Given `const g = new C~()`, `g.length` is `0` (based on length derived from placeholder arguments).
+* Given `const g = new C~()`, `Object.getPrototypeOf(g)` is `C`.
 * Given `new (f~())`, the partial application of `f` returns a new function that can be constructed via `new`, similar
   to `new (f.bind(null))`.
 * Given `f?.~()` (a partially applied, optional call), if `f` is `null` or `undefined`, the result is `undefined`. Otherwise,
