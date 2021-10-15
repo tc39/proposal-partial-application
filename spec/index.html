@@ -314,7 +314,8 @@
           1. If _arg_ is an ArgumentPlaceholder Record, then
             1. If _arg_.[[Kind]] is ~positional~, set _L_ to _L_ + 1.
             1. Else, if _arg_.[[Kind]] is ~ordinal~, then
-              1. If _arg_.[[Ordinal]] &gt; _maxOrdinal_, set _maxOrdinal_ to _arg_.[[Ordinal]].
+              1. Let _ordinal_ be _arg_.[[Ordinal]]
+              1. If _ordinal_ + 1 &gt; _maxOrdinal_, set _maxOrdinal_ to _ordinal_ + 1.
         1. If _maxOrdinal_ &gt; _L_, set _L_ to _maxOrdinal_.
         1. Perform ! SetFunctionLength(_bound_, _L_).
         1. Let _targetName_ be ? Get (_F_, *"name"*).
@@ -342,7 +343,8 @@
           1. If _arg_ is an ArgumentPlaceholder Record, then
             1. If _arg_.[[Kind]] is ~positional~, set _L_ to _L_ + 1.
             1. Else, if _arg_.[[Kind]] is ~ordinal~, then
-              1. If _arg_.[[Ordinal]] &gt; _maxOrdinal_, set _maxOrdinal_ to _arg_.[[Ordinal]].
+              1. Let _ordinal_ be _arg_.[[Ordinal]]
+              1. If _ordinal_ + 1 &gt; _maxOrdinal_, set _maxOrdinal_ to _ordinal_ + 1.
         1. If _maxOrdinal_ &gt; _L_, set _L_ to _maxOrdinal_.
         1. Perform ! SetFunctionLength(_bound_, _L_).
         1. Let _targetName_ be ? Get (_F_, *"name"*).
