@@ -336,6 +336,7 @@
       </dl>
       <emu-alg>
         1. If IsConstructor(_F_) is *false*, throw a *TypeError* exception.
+        1. If _argumentsList_ is ~empty~, set _argumentsList_ to a new empty List.
         1. Let _bound_ be BoundFunctionCreate(_F_, *null*, _argumentsList_, ~partial-construct~).
         1. Let _L_ be 0.
         1. Let _maxOrdinal_ be 0.
