@@ -22,10 +22,10 @@
   },
   "homepage": "https://github.com/rbuckton/proposal-partial-application#readme",
   "devDependencies": {
-    "del": "^2.2.2",
-    "ecmarkup": "^3.16.0",
-    "gulp": "^3.9.1",
-    "gulp-emu": "^1.1.0",
-    "gulp-live-server": "0.0.30"
+    "del": "^6.0.0",
+    "ecmarkup": "^9.3.0",
+    "gulp": "^4.0.2",
+    "gulp-emu": "^2.1.0",
+    "gulp-live-server": "0.0.31"
   }
 }

@@ -398,9 +398,9 @@ ArgumentList[Yield, Await, Partial] :
   `...` AssignmentExpression[+In, ?Yield, ?Await]
   ArgumentList[?Yield, ?Await, ?Partial] `,` AssignmentExpression[+In, ?Yield, ?Await]
   ArgumentList[?Yield, ?Await, ?Partial] `,` `...` AssignmentExpression[+In, ?Yield, ?Await]
-  [+Partial] `?` DecimalDigits?
+  [+Partial] `?` DecimalIntegerLiteral?
   [+Partial] `...`
-  [+Partial] ArgumentList[?Yield, ?Await, ?Partial] `,` `?` DecimalDigits?
+  [+Partial] ArgumentList[?Yield, ?Await, ?Partial] `,` `?` DecimalIntegerLiteral?
   [+Partial] ArgumentList[?Yield, ?Await, ?Partial] `,` `...`
 ```
 

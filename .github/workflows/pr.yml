@@ -1,0 +1,29 @@
+name: Publish PR to gh-pages/pr/
+on:
+  pull_request:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v2
+      - run: npm install
+      - run: npm run compile
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@4.1.4
+        with:
+          branch: gh-pages
+          folder: docs
+          target-folder: pr/${{ github.event.number }}/
+      - id: get-preview-url
+        name: Get preview url
+        run: echo "::set-output name=preview-url::https://tc39.es/$(basename $GITHUB_REPOSITORY)/pr/${{ github.event.number }}"
+        shell: bash
+      - name: Post Preview Comment
+        uses: phulsechinmay/rewritable-pr-comment@v0.3.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_IDENTIFIER: tc39_pr_preview_comment
+          message: |
+            A preview of this PR can be found at ${{ steps.get-preview-url.outputs.preview-url }}.

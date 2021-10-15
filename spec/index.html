@@ -1,0 +1,762 @@
+<!doctype html>
+<meta charset="utf8">
+<link rel="stylesheet" href="ecmarkup.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/styles/github.min.css">
+<link rel="spec" href="es2015" />
+<script src="ecmarkup.js"></script>
+<pre class="metadata">
+    title: Pipeline and Partial Application Operators for ECMAScript
+    stage: 0
+    grammar: strict
+    contributors: Ron Buckton, Ecma International
+</pre>
+
+<emu-intro id="sec-intro">
+    <h1>Introduction</h1>
+    <emu-import href="sec-introduction.html"></emu-import>
+</emu-intro>
+
+<emu-clause id="sec-ecmascript-data-types-and-values" aoid="Type">
+  <h1>ECMAScript Data Types and Values</h1>
+
+  <ins class="block">
+  <emu-clause id="sec-argumentplaceholder-record-specification-type">
+    <h1>The ArgumentPlaceholder Record Specification Type</h1>
+    <p>A <dfn variants="ArgumentPlaceholder Records">ArgumentPlaceholder Record</dfn> is a Record value used to encapsulate information about an argument placeholder in a partial application.</p>
+    <p>ArgumentPlaceholder Records have the fields listed in <emu-xref href="#table-argumentplaceholder-record-fields"></emu-xref>.</p>
+    <emu-table id="table-argumentplaceholder-record-fields" caption="ArgumentPlaceholder Record Fields">
+      <table>
+        <tbody>
+        <tr>
+          <th>
+            Field Name
+          </th>
+          <th>
+            Value
+          </th>
+          <th>
+            Meaning
+          </th>
+        </tr>
+        <tr>
+          <td>
+            [[Kind]]
+          </td>
+          <td>
+            ~positional~, ~ordinal~, or ~rest~.
+          </td>
+          <td>
+            A value indicating a positional placeholder (i.e., `?`), an ordinal placeholder (i.e., `?0`), or a "rest" placeholder (i.e., `...`) in a partial application.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            [[Ordinal]]
+          </td>
+          <td>
+            A Number.
+          </td>
+          <td>
+            For an ordinal placeholder, the ordinal position of the related parameter in the resulting bound function.
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </emu-table>
+  </emu-clause>
+  </ins>
+
+</emu-clause>
+
+<emu-clause id="sec-ordinary-and-exotic-objects-behaviours">
+  <h1>Ordinary and Exotic Objects Behaviours</h1>
+
+  <emu-clause id="sec-built-in-exotic-object-internal-methods-and-slots">
+    <h1>Built-in Exotic Object Internal Methods and Slots</h1>
+
+    <emu-clause id="sec-bound-function-exotic-objects">
+      <h1>Bound Function Exotic Objects</h1>
+      <p>A bound function exotic object is an exotic object that wraps another function object. A bound function exotic object is callable (it has a [[Call]] internal method and may have a [[Construct]] internal method). Calling a bound function exotic object generally results in a call of its wrapped function.</p>
+
+      <p>An object is a <dfn id="bound-function-exotic-object" variants="bound function exotic objects">bound function exotic object</dfn> if its [[Call]] and (if applicable) [[Construct]] internal methods use the following implementations, and its other essential internal methods use the definitions found in <emu-xref href="#sec-ordinary-object-internal-methods-and-internal-slots"></emu-xref>. These methods are installed in BoundFunctionCreate.</p>
+
+      <p>Bound function exotic objects do not have the internal slots of ECMAScript function objects listed in <emu-xref href="#table-internal-slots-of-ecmascript-function-objects"></emu-xref>. Instead they have the internal slots listed in <emu-xref href="#table-internal-slots-of-bound-function-exotic-objects"></emu-xref>, in addition to [[Prototype]] and [[Extensible]].</p>
+      <emu-table id="table-internal-slots-of-bound-function-exotic-objects" caption="Internal Slots of Bound Function Exotic Objects" oldids="table-28">
+        <table>
+          <tbody>
+          <tr>
+            <th>
+              Internal Slot
+            </th>
+            <th>
+              Type
+            </th>
+            <th>
+              Description
+            </th>
+          </tr>
+          <tr>
+            <td>
+              [[BoundTargetFunction]]
+            </td>
+            <td>
+              Callable Object
+            </td>
+            <td>
+              The wrapped function object.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              [[BoundThis]]
+            </td>
+            <td>
+              Any
+            </td>
+            <td>
+              The value that is always passed as the *this* value when calling the wrapped function.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              [[BoundArguments]]
+            </td>
+            <td>
+              List of Any
+            </td>
+            <td>
+              A list of values whose elements are used as the first arguments to any call to the wrapped function.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <ins>[[Kind]]</ins>
+            </td>
+            <td>
+              <ins>~bound~, ~partial-call~, or ~partial-construct~</ins>
+            </td>
+            <td>
+              <ins>A value indicating whether the bound function is the result of partial application.</ins>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </emu-table>
+
+      <emu-clause id="sec-bound-function-exotic-objects-call-thisargument-argumentslist" type="internal method">
+        <h1>
+          [[Call]] (
+            _thisArgument_: an ECMAScript language value,
+            _argumentsList_: a List of ECMAScript language values,
+          )
+        </h1>
+        <dl class="header">
+          <dt>for</dt>
+          <dd>a bound function exotic object _F_</dd>
+        </dl>
+        <emu-alg>
+          1. Let _target_ be _F_.[[BoundTargetFunction]].
+          1. Let _boundThis_ be _F_.[[BoundThis]].
+          1. Let _boundArgs_ be _F_.[[BoundArguments]].
+          1. <ins>Let _kind_ be _F_.[[Kind]].</ins>
+          1. <ins>If _kind_ is ~partial-construct~, then</ins>
+            1. <ins>Let _args_ be ? ApplyPartialArguments(_boundArgs_, _argumentsList_).</ins>
+            1. <ins>Assert: IsConstructor(_target_) is *true*.</ins>
+            1. <ins>Return ? Construct(_target_, _args_).</ins>
+          1. <ins>If _kind_ is ~partial-call~, then</ins>
+            1. <ins>Let _args_ be ? ApplyPartialArguments(_boundArgs_, _argumentsList_).</ins>
+          1. <ins>Else, </ins><del>Let</del><ins>let</ins> _args_ be the list-concatenation of _boundArgs_ and _argumentsList_.
+          1. Return ? Call(_target_, _boundThis_, _args_).
+        </emu-alg>
+      </emu-clause>
+
+      <emu-clause id="sec-bound-function-exotic-objects-construct-argumentslist-newtarget" type="internal method">
+        <h1>
+          [[Construct]] (
+            _argumentsList_: a List of ECMAScript language values,
+            _newTarget_: a constructor,
+          )
+        </h1>
+        <dl class="header">
+          <dt>for</dt>
+          <dd>a bound function exotic object _F_</dd>
+        </dl>
+        <emu-alg>
+          1. Let _target_ be _F_.[[BoundTargetFunction]].
+          1. Assert: IsConstructor(_target_) is *true*.
+          1. Let _boundArgs_ be _F_.[[BoundArguments]].
+          1. <ins>Let _kind_ be _F_.[[Kind]].</ins>
+          1. <ins>If _kind_ is ~partial-construct~ or ~partial-call~, then</ins>
+            1. <ins>Let _args_ be ? ApplyPartialArguments(_boundArgs_, _argumentsList_).</ins>
+          1. <ins>Else, </ins><del>Let</del><ins>let</ins> _args_ be the list-concatenation of _boundArgs_ and _argumentsList_.
+          1. If SameValue(_F_, _newTarget_) is *true*, set _newTarget_ to _target_.
+          1. Return ? Construct(_target_, _args_, _newTarget_).
+        </emu-alg>
+      </emu-clause>
+
+      <emu-clause id="sec-boundfunctioncreate" type="abstract operation">
+        <h1>
+          BoundFunctionCreate (
+            _targetFunction_: a function object,
+            _boundThis_: an ECMAScript language value,
+            _boundArgs_: a List of ECMAScript language values,
+            <ins>optional _kind_: ~bound~, ~partial-call~, or ~partial-construct~</ins>
+          )
+        </h1>
+        <dl class="header">
+          <dt>description</dt>
+          <dd>It is used to specify the creation of new bound function exotic objects.</dd>
+        </dl>
+        <emu-alg>
+          1. <ins>If _kind_ is not present, let _kind_ be ~bound~.</ins>
+          1. <ins>Assert: If _kind_ is ~bound~, _boundArgs_ contains no ArgumentPlaceholder Records.</ins>
+          1. Let _proto_ be ? _targetFunction_.[[GetPrototypeOf]]().
+          1. Let _internalSlotsList_ be the internal slots listed in <emu-xref href="#table-internal-slots-of-bound-function-exotic-objects"></emu-xref>, plus [[Prototype]] and [[Extensible]].
+          1. Let _obj_ be ! MakeBasicObject(_internalSlotsList_).
+          1. Set _obj_.[[Prototype]] to _proto_.
+          1. Set _obj_.[[Call]] as described in <emu-xref href="#sec-bound-function-exotic-objects-call-thisargument-argumentslist"></emu-xref>.
+          1. If IsConstructor(_targetFunction_) is *true*, then
+            1. Set _obj_.[[Construct]] as described in <emu-xref href="#sec-bound-function-exotic-objects-construct-argumentslist-newtarget"></emu-xref>.
+          1. Set _obj_.[[BoundTargetFunction]] to _targetFunction_.
+          1. Set _obj_.[[BoundThis]] to _boundThis_.
+          1. Set _obj_.[[BoundArguments]] to _boundArgs_.
+          1. <ins>Set _obj_.[[Kind]] to _kind_.</ins>
+          1. Return _obj_.
+        </emu-alg>
+      </emu-clause>
+
+      <ins class="block">
+      <emu-clause id="sec-applypartialarguments" type="abstract operation">
+        <h1>
+          ApplyPartialArguments (
+            _boundArgs_: a List of ECMAScript language values and ArgumentPlaceholder Records,
+            _argumentsList_: a List of ECMAScript language values,
+          )
+        </h1>
+        <dl class="header">
+        </dl>
+        <emu-alg>
+          1. Let _args_ be a new empty List.
+          1. Let _position_ be 0.
+          1. Let _maxPosition_ be 0.
+          1. Let _boundLen_ be the number of elements in _boundArgs_.
+          1. Let _argLen_ be the number of elements in _argumentsList_.
+          1. Let _i_ be 0;
+          1. While _i_ &lt; _boundLen_, do
+            1. Let _arg_ be _boundArgs_[_i_].
+            1. If _arg_ is an ArgumentPlaceholder Record, then
+              1. If _arg_.[[Kind]] is ~positional~, then
+                1. Set _position_ to _position_ + 1
+              1. Else, if _arg_.[[Kind]] is ~ordinal~, then
+                1. Let _ordinal_ be _arg_.[[Ordinal]].
+                1. If _ordinal_ &gt; _maxPosition_, set _maxPosition_ to _ordinal_.
+            1. Set _i_ to _i_ + 1.
+          1. If _position_ &gt; _maxPosition_, set _maxPosition_ to _position_.
+          1. Let _position_ be 0.
+          1. Set _i_ to 0.
+          1. While _i_ &lt; _boundLen_, do
+            1. Let _arg_ be _boundArgs_[_i_].
+            1. If _arg_ is an ArgumentPlaceholder Record, then
+              1. If _arg_.[[Kind]] is ~positional~, then
+                1. If _position_ &lt; _argLen_, set _arg_ to _argumentsList_[_position_].
+                1. Else, set _arg_ to *undefined*.
+                1. Set _position_ to _position_ + 1.
+                1. Append _arg_ to _args_.
+              1. Else, if _arg_.[[Kind]] is ~ordinal~, then
+                1. Let _ordinal_ be _arg_.[[Ordinal]].
+                1. If _ordinal_ &lt; _argLen_, set _arg_ to _argumentsList_[_ordinal_].
+                1. Else, set _arg_ to *undefined*.
+                1. Append _arg_ to _args_.
+              1. Else,
+                1. Assert: _arg_.[[Kind]] is ~rest~.
+                1. Let _restIndex_ be _maxPosition_.
+                1. While _restIndex_ &lt; _argLen_, do
+                  1. Set _arg_ to _argumentsList_[_restIndex_].
+                  1. Append _arg_ to _args_.
+                  1. Set _restIndex_ to _restIndex_ + 1.
+            1. Else,
+              1. Append _arg_ to _args_.
+            1. Set _i_ to _i_ + 1.
+          1. Return _args_.
+        </emu-alg>
+      </emu-clause>
+      </ins>
+
+    </emu-clause>
+
+  </emu-clause>
+
+</emu-clause>
+
+<emu-clause id="sec-ecmascript-language-expressions">
+  <h1>ECMAScript Language: Expressions</h1>
+
+  <emu-clause id="sec-operations-on-objects">
+    <h1>Operations on Objects</h1>
+
+    <ins class="block">
+    <emu-clause id="sec-partialcall" type="abstract operation">
+      <h1>
+        PartialCall (
+          _F_: an ECMAScript language value,
+          _V_: an ECMAScript language value,
+          _argumentsList_: a List of ECMAScript language values and ArgumentPlaceholder Records,
+        )
+      </h1>
+      <dl class="header">
+      </dl>
+      <emu-alg>
+        1. If IsCallable(_F_) is *false*, throw a *TypeError* exception.
+        1. Let _bound_ be BoundFunctionCreate(_F_, _V_, _argumentsList_, ~partial-call~).
+        1. Let _L_ be 0.
+        1. Let _maxOrdinal_ be 0.
+        1. For each _element_ of _argumentsList_, do
+          1. If _arg_ is an ArgumentPlaceholder Record, then
+            1. If _arg_.[[Kind]] is ~positional~, set _L_ to _L_ + 1.
+            1. Else, if _arg_.[[Kind]] is ~ordinal~, then
+              1. If _arg_.[[Ordinal]] &gt; _maxOrdinal_, set _maxOrdinal_ to _arg_.[[Ordinal]].
+        1. If _maxOrdinal_ &gt; _L_, set _L_ to _maxOrdinal_.
+        1. Perform ! SetFunctionLength(_bound_, _L_).
+        1. Let _targetName_ be ? Get (_F_, *"name"*).
+        1. If Type(_targetName_) is not String, set _targetName_ to the empty String.
+        1. Perform SetFunctionName(_bound_, _targetName_, "bound").
+        1. Return _bound_.
+      </emu-alg>
+    </emu-clause>
+
+    <emu-clause id="sec-partialconstruct" type="abstract operation">
+      <h1>
+        PartialConstruct (
+          _F_: a constructor,
+          _argumentsList_: ~empty~ or a List of ECMAScript language values and ArgumentPlaceholder Records,
+        )
+      </h1>
+      <dl class="header">
+      </dl>
+      <emu-alg>
+        1. If IsConstructor(_F_) is *false*, throw a *TypeError* exception.
+        1. Let _bound_ be BoundFunctionCreate(_F_, *null*, _argumentsList_, ~partial-construct~).
+        1. Let _L_ be 0.
+        1. Let _maxOrdinal_ be 0.
+        1. For each _element_ of _argumentsList_, do
+          1. If _arg_ is an ArgumentPlaceholder Record, then
+            1. If _arg_.[[Kind]] is ~positional~, set _L_ to _L_ + 1.
+            1. Else, if _arg_.[[Kind]] is ~ordinal~, then
+              1. If _arg_.[[Ordinal]] &gt; _maxOrdinal_, set _maxOrdinal_ to _arg_.[[Ordinal]].
+        1. If _maxOrdinal_ &gt; _L_, set _L_ to _maxOrdinal_.
+        1. Perform ! SetFunctionLength(_bound_, _L_).
+        1. Let _targetName_ be ? Get (_F_, *"name"*).
+        1. If Type(_targetName_) is not String, set _targetName_ to the empty String.
+        1. Perform SetFunctionName(_bound_, _targetName_, "bound").
+        1. Return _bound_.
+      </emu-alg>
+    </emu-clause>
+    </ins>
+
+  </emu-clause>
+
+  <emu-clause id="sec-left-hand-side-expressions">
+    <h1>Left-Hand-Side Expressions</h1>
+    <h2>Syntax</h2>
+    <emu-grammar type="definition">
+      MemberExpression[Yield, Await] :
+        PrimaryExpression[?Yield, ?Await]
+        MemberExpression[?Yield, ?Await] `[` Expression[+In, ?Yield, ?Await] `]`
+        MemberExpression[?Yield, ?Await] `.` IdentifierName
+        MemberExpression[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
+        SuperProperty[?Yield, ?Await]
+        MetaProperty
+        `new` MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, <ins>+Partial</ins>]
+        MemberExpression[?Yield, ?Await] `.` PrivateIdentifier
+
+      SuperProperty[Yield, Await] :
+        `super` `[` Expression[+In, ?Yield, ?Await] `]`
+        `super` `.` IdentifierName
+
+      MetaProperty :
+        NewTarget
+        ImportMeta
+
+      NewTarget :
+        `new` `.` `target`
+
+      ImportMeta :
+        `import` `.` `meta`
+
+      NewExpression[Yield, Await] :
+        MemberExpression[?Yield, ?Await]
+        `new` NewExpression[?Yield, ?Await]
+
+      CallExpression[Yield, Await] :
+        CoverCallExpressionAndAsyncArrowHead[?Yield, ?Await] #callcover
+        SuperCall[?Yield, ?Await]
+        ImportCall[?Yield, ?Await]
+        CallExpression[?Yield, ?Await] Arguments[?Yield, ?Await, <ins>+Partial</ins>]
+        CallExpression[?Yield, ?Await] `[` Expression[+In, ?Yield, ?Await] `]`
+        CallExpression[?Yield, ?Await] `.` IdentifierName
+        CallExpression[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
+        CallExpression[?Yield, ?Await] `.` PrivateIdentifier
+
+      SuperCall[Yield, Await] :
+        `super` Arguments[?Yield, ?Await]
+
+      ImportCall[Yield, Await] :
+        `import` `(` AssignmentExpression[+In, ?Yield, ?Await] `)`
+
+      Arguments[Yield, Await, <ins>Partial</ins>] :
+        `(` `)`
+        `(` ArgumentList[?Yield, ?Await, <ins>~Partial</ins>] `)`
+        `(` ArgumentList[?Yield, ?Await, <ins>~Partial</ins>] `,` `)`
+        <ins>[+Partial] [no LineTerminator here] `~` `(` `)`</ins>
+        <ins>[+Partial] [no LineTerminator here] `~` `(` ArgumentList[?Yield, ?Await, +Partial] `)`</ins>
+        <ins>[+Partial] [no LineTerminator here] `~` `(` ArgumentList[?Yield, ?Await, +Partial] `,` `)`</ins>
+
+      ArgumentList[Yield, Await, <ins>Partial</ins>] :
+        AssignmentExpression[+In, ?Yield, ?Await]
+        `...` AssignmentExpression[+In, ?Yield, ?Await]
+        ArgumentList[?Yield, ?Await, <ins>?Partial</ins>] `,` AssignmentExpression[+In, ?Yield, ?Await]
+        ArgumentList[?Yield, ?Await, <ins>?Partial</ins>] `,` `...` AssignmentExpression[+In, ?Yield, ?Await]
+        <ins>[+Partial] `?` DecimalIntegerLiteral?</ins>
+        <ins>[+Partial] `...`</ins>
+        <ins>[+Partial] ArgumentList[?Yield, ?Await, ?Partial] `,` `?` DecimalIntegerLiteral?</ins>
+        <ins>[+Partial] ArgumentList[?Yield, ?Await, ?Partial] `,` `...`</ins>
+
+      OptionalChain[Yield, Await] :
+        `?.` Arguments[?Yield, ?Await, <ins>+Partial</ins>]
+        `?.` `[` Expression[+In, ?Yield, ?Await] `]`
+        `?.` IdentifierName
+        `?.` TemplateLiteral[?Yield, ?Await, +Tagged]
+        `?.` PrivateIdentifier
+        OptionalChain[?Yield, ?Await] Arguments[?Yield, ?Await, <ins>+Partial</ins>]
+        OptionalChain[?Yield, ?Await] `[` Expression[+In, ?Yield, ?Await] `]`
+        OptionalChain[?Yield, ?Await] `.` IdentifierName
+        OptionalChain[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
+        OptionalChain[?Yield, ?Await] `.` PrivateIdentifier
+
+      LeftHandSideExpression[Yield, Await] :
+        NewExpression[?Yield, ?Await]
+        CallExpression[?Yield, ?Await]
+        OptionalExpression[?Yield, ?Await]
+    </emu-grammar>
+    <h2>Supplemental Syntax</h2>
+    <p>When processing an instance of the production
+      <br>
+      <emu-grammar>CallExpression : CoverCallExpressionAndAsyncArrowHead</emu-grammar>
+      <br>
+      the interpretation of |CoverCallExpressionAndAsyncArrowHead| is refined using the following grammar:</p>
+    <emu-grammar type="definition">
+      CallMemberExpression[Yield, Await, <ins>Partial</ins>] :
+        MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await, <ins>?Partial</ins>]
+    </emu-grammar>
+
+    <emu-clause id="sec-static-semantics">
+      <h1>Static Semantics</h1>
+
+      <emu-clause id="sec-left-hand-side-expressions-static-semantics-early-errors">
+        <h1>Static Semantics: Early Errors</h1>
+        <ins class="block">
+        <emu-grammar>
+          Arguments :
+            `~` `(` ArgumentList `)`
+            `~` `(` ArgumentList `,` `)`
+        </emu-grammar>
+        <ul>
+          <li>
+            It is a Syntax Error if ContainsDuplicateRestPlaceholder for |ArgumentList| is *true*.
+          </li>
+        </ul>
+        </ins>
+      </emu-clause>
+
+      <ins class="block">
+      <emu-clause id="sec-static-semantics-containsduplicaterestplaceholder" type="sdo" aoid-"ContainsDuplicateRestPlaceholder">
+        <h1>Static Semantics: ContainsDuplicateRestPlaceholder ( [ _found_ ] )</h1>
+        <emu-grammar>
+          ArgumentList :
+            AssignmentExpression
+            `...` AssignmentExpression
+            `?` DecimalIntegerLiteral?
+        </emu-grammar>
+        <emu-alg>
+          1. Return *false*.
+        </emu-alg>
+        <emu-grammar>
+          ArgumentList :
+            ArgumentList `,` AssignmentExpression
+            ArgumentList `,` `...` AssignmentExpression
+            ArgumentList `,` `?` DecimalIntegerLiteral?
+        </emu-grammar>
+        <emu-alg>
+          1. If _found_ is not present, let _found_ be *false*.
+          1. Return the result of ContainsDuplicateRestPlaceholder for |ArgumentList| with argument _found_.
+        </emu-alg>
+        <emu-grammar>
+          ArgumentList :
+            `...`
+        </emu-grammar>
+        <emu-alg>
+          1. If _found_ is not present, return *false*.
+          1. If _found_ is *true*, return *true*.
+          1. Return *false*.
+        </emu-alg>
+        <emu-grammar>
+          ArgumentList :
+            ArgumentList `,` `...`
+        </emu-grammar>
+        <emu-alg>
+          1. If _found_ is not present, let _found_ be *false*.
+          1. If _found_ is *true*, return *true*.
+          1. Return the result of ContainsDuplicateRestPlaceholder for |ArgumentList| with argument *true*.
+        </emu-alg>
+      </emu-clause>
+
+      <emu-clause id="sec-static-semantics-ispartialarguments" type="sdo" aoid="IsPartialArguments">
+        <h1>Static Semantics: IsPartialArguments</h1>
+        <emu-grammar>
+          Arguments :
+            `(` `)`
+            `(` ArgumentList `)`
+            `(` ArgumentList `,` `)`
+        </emu-grammar>
+        <emu-alg>
+          1. Return *false*.
+        </emu-alg>
+        <emu-grammar>
+          Arguments :
+            `~` `(` `)`
+            `~` `(` ArgumentList `)`
+            `~` `(` ArgumentList `,` `)`
+        </emu-grammar>
+        <emu-alg>
+          1. Return *true*.
+        </emu-alg>
+      </emu-clause>
+      </ins>
+    </emu-clause>
+
+    <emu-clause id="sec-new-operator">
+      <h1>The `new` Operator</h1>
+
+      <emu-clause id="sec-new-operator-runtime-semantics-evaluation">
+        <h1>Runtime Semantics: Evaluation</h1>
+
+        <emu-clause id="sec-evaluatenew" type="abstract operation">
+          <h1>
+            EvaluateNew (
+              _constructExpr_: a |NewExpression| Parse Node or a |MemberExpression| Parse Node,
+              _arguments_: ~empty~ or an |Arguments| Parse Node,
+            )
+          </h1>
+          <dl class="header">
+          </dl>
+          <emu-alg>
+            1. Let _ref_ be the result of evaluating _constructExpr_.
+            1. Let _constructor_ be ? GetValue(_ref_).
+            1. If _arguments_ is ~empty~<del>, let _argList_ be a new empty List.</del><ins>, then</ins>
+              1. <ins>Let _isPartial_ be *false*.</ins>
+              1. <ins>Let _argList_ be a new empty List.</ins>
+            1. Else,
+              1. <ins>Let _isPartial_ be ! IsPartialArguments of _arguments_.</ins>
+              1. Let _argList_ be ? ArgumentListEvaluation of _arguments_<ins> with argument _isPartial_</ins>.
+            1. If IsConstructor(_constructor_) is *false*, throw a *TypeError* exception.
+            1. <ins>If _isPartial_ is *true*, return ? PartialConstruct(_constructor_, _argList_).</ins>
+            1. Return ? Construct(_constructor_, _argList_).
+          </emu-alg>
+        </emu-clause>
+      </emu-clause>
+    </emu-clause>
+
+    <emu-clause id="sec-function-calls">
+      <h1>Function Calls</h1>
+
+      <emu-clause id="sec-function-calls-runtime-semantics-evaluation">
+        <h1>Runtime Semantics: Evaluation</h1>
+        <emu-grammar>CallExpression : CoverCallExpressionAndAsyncArrowHead</emu-grammar>
+        <emu-alg>
+          1. Let _expr_ be the |CallMemberExpression| that is covered by |CoverCallExpressionAndAsyncArrowHead|.
+          1. Let _memberExpr_ be the |MemberExpression| of _expr_.
+          1. Let _arguments_ be the |Arguments| of _expr_.
+          1. <ins>Let _isPartial_ be ! IsPartialArguments of |Arguments|.</ins> 
+          1. Let _ref_ be the result of evaluating _memberExpr_.
+          1. Let _func_ be ? GetValue(_ref_).
+          1. If _ref_ is a Reference Record, IsPropertyReference(_ref_) is *false*, <ins>_isPartial_ is *false*, </ins>and _ref_.[[ReferencedName]] is *"eval"*, then
+            1. If SameValue(_func_, %eval%) is *true*, then
+              1. Let _argList_ be ? ArgumentListEvaluation of _arguments_<ins> with argument *false*</ins>.
+              1. If _argList_ has no elements, return *undefined*.
+              1. Let _evalArg_ be the first element of _argList_.
+              1. If the source code matching this |CallExpression| is strict mode code, let _strictCaller_ be *true*. Otherwise let _strictCaller_ be *false*.
+              1. Let _evalRealm_ be the current Realm Record.
+              1. [id="step-callexpression-evaluation-direct-eval"] Return ? PerformEval(_evalArg_, _evalRealm_, _strictCaller_, *true*).
+          1. Let _thisCall_ be this |CallExpression|.
+          1. Let _tailCall_ be IsInTailPosition(_thisCall_).
+          1. Return ? EvaluateCall(_func_, _ref_, _arguments_, _tailCall_).
+        </emu-alg>
+      </emu-clause>
+
+      <emu-clause id="sec-evaluatecall" type="abstract operation" oldids="sec-evaluatedirectcall">
+        <h1>
+          EvaluateCall (
+            _func_: an ECMAScript language value,
+            _ref_: an ECMAScript language value or a Reference Record,
+            _arguments_: a Parse Node,
+            _tailPosition_: a Boolean,
+          )
+        </h1>
+        <dl class="header">
+        </dl>
+        <emu-alg>
+          1. If _ref_ is a Reference Record, then
+            1. If IsPropertyReference(_ref_) is *true*, then
+              1. Let _thisValue_ be GetThisValue(_ref_).
+            1. Else,
+              1. Let _refEnv_ be _ref_.[[Base]].
+              1. Assert: _refEnv_ is an Environment Record.
+              1. Let _thisValue_ be _refEnv_.WithBaseObject().
+          1. Else,
+            1. Let _thisValue_ be *undefined*.
+          1. <ins>Let _isPartial_ be ! IsPartialArguments of _arguments_.</ins>
+          1. Let _argList_ be ? ArgumentListEvaluation of _arguments_<ins> with argument _isPartial_</ins>.
+          1. If Type(_func_) is not Object, throw a *TypeError* exception.
+          1. If IsCallable(_func_) is *false*, throw a *TypeError* exception.
+          1. If _tailPosition_ is *true*<ins> and _isPartial_ is *false*</ins>, perform PrepareForTailCall().
+          1. <ins>If _isPartial_ is *true*, let _result_ be PartialCall(_func_, _thisValue_, _argList_).</ins>
+          1. <ins>Else, </ins><del>Let</del><ins>let</ins> _result_ be Call(_func_, _thisValue_, _argList_).
+          1. Assert: If _result_ is not an abrupt completion, then Type(_result_) is an ECMAScript language type.
+          1. Return _result_.
+        </emu-alg>
+      </emu-clause>
+    </emu-clause>
+
+    <emu-clause id="sec-argument-lists">
+      <h1>Argument Lists</h1>
+      <emu-note>
+        <p>The evaluation of an argument list produces a List of values.</p>
+      </emu-note>
+
+      <emu-clause id="sec-runtime-semantics-argumentlistevaluation" oldids="sec-template-literals-runtime-semantics-argumentlistevaluation,sec-argument-lists-runtime-semantics-argumentlistevaluation" type="sdo" aoid="ArgumentListEvaluation">
+        <h1>Runtime Semantics: ArgumentListEvaluation <ins>( _isPartial_ )</ins></h1>
+        <emu-grammar>
+          Arguments : `(` `)`
+        </emu-grammar>
+        <emu-alg>
+          1. <ins>Assert: _isPartial_ is *false*.</ins>
+          1. Return a new empty List.
+        </emu-alg>
+        <ins class="block">
+        <emu-grammar>
+          Arguments : `~` `(` `)`
+        </emu-grammar>
+        <emu-alg>
+          1. <ins>Assert: _isPartial_ is *true*.</ins>
+          1. Return a new empty List.
+        </emu-alg>
+        </ins>
+        <emu-grammar>ArgumentList : AssignmentExpression</emu-grammar>
+        <emu-alg>
+          1. Let _ref_ be the result of evaluating |AssignmentExpression|.
+          1. Let _arg_ be ? GetValue(_ref_).
+          1. Return a List whose sole element is _arg_.
+        </emu-alg>
+        <emu-grammar>ArgumentList : `...` AssignmentExpression</emu-grammar>
+        <emu-alg>
+          1. Let _list_ be a new empty List.
+          1. Let _spreadRef_ be the result of evaluating |AssignmentExpression|.
+          1. Let _spreadObj_ be ? GetValue(_spreadRef_).
+          1. Let _iteratorRecord_ be ? GetIterator(_spreadObj_).
+          1. Repeat,
+            1. Let _next_ be ? IteratorStep(_iteratorRecord_).
+            1. If _next_ is *false*, return _list_.
+            1. Let _nextArg_ be ? IteratorValue(_next_).
+            1. Append _nextArg_ as the last element of _list_.
+        </emu-alg>
+        <emu-grammar>ArgumentList : ArgumentList `,` AssignmentExpression</emu-grammar>
+        <emu-alg>
+          1. Let _precedingArgs_ be ? ArgumentListEvaluation of |ArgumentList|<ins> with argument _isPartial_</ins>.
+          1. Let _ref_ be the result of evaluating |AssignmentExpression|.
+          1. Let _arg_ be ? GetValue(_ref_).
+          1. Return the list-concatenation of _precedingArgs_ and &laquo; _arg_ &raquo;.
+        </emu-alg>
+        <emu-grammar>ArgumentList : ArgumentList `,` `...` AssignmentExpression</emu-grammar>
+        <emu-alg>
+          1. Let _precedingArgs_ be ? ArgumentListEvaluation of |ArgumentList|<ins> with argument _isPartial_</ins>.
+          1. Let _spreadRef_ be the result of evaluating |AssignmentExpression|.
+          1. Let _iteratorRecord_ be ? GetIterator(? GetValue(_spreadRef_)).
+          1. Repeat,
+            1. Let _next_ be ? IteratorStep(_iteratorRecord_).
+            1. If _next_ is *false*, return _precedingArgs_.
+            1. Let _nextArg_ be ? IteratorValue(_next_).
+            1. Append _nextArg_ as the last element of _precedingArgs_.
+        </emu-alg>
+
+        <ins class="block">
+        <emu-grammar>ArgumentList : `?`</emu-grammar>
+        <emu-alg>
+          1. Assert: _isPartial_ is *true*.
+          1. Let _arg_ be an ArgumentPlaceholder Record { [[Kind]]: ~positional~, [[Ordinal]]: -1 }.
+          1. Return a List whose sole element is _arg_.
+        </emu-alg>
+        <emu-grammar>ArgumentList : `?` DecimalIntegerLiteral</emu-grammar>
+        <emu-alg>
+          1. Assert: _isPartial_ is *true*.
+          1. Let _arg_ be an ArgumentPlaceholder Record { [[Kind]]: ~ordinal~, [[Ordinal]]: RoundMVResult(MV of |DecimalIntegerLiteral|) }.
+          1. Return a List whose sole element is _arg_.
+        </emu-alg>
+        <emu-grammar>ArgumentList : `...`</emu-grammar>
+        <emu-alg>
+          1. Assert: _isPartial_ is *true*.
+          1. Let _arg_ be an ArgumentPlaceholder Record { [[Kind]]: ~rest~, [[Ordinal]]: -1 }.
+          1. Return a List whose sole element is _arg_.
+        </emu-alg>
+        <emu-grammar>ArgumentList : ArgumentList `,` `?`</emu-grammar>
+        <emu-alg>
+          1. Assert: _isPartial_ is *true*.
+          1. Let _precedingArgs_ be ? ArgumentListEvaluation of |ArgumentList| with argument *true*.
+          1. Let _arg_ be an ArgumentPlaceholder Record { [[Kind]]: ~positional~, [[Ordinal]]: -1 }.
+          1. Return the list-concatenation of _precedingArgs_ and &laquo; _arg_ &raquo;.
+        </emu-alg>
+        <emu-grammar>ArgumentList : ArgumentList `,` `?` DecimalIntegerLiteral</emu-grammar>
+        <emu-alg>
+          1. Assert: _isPartial_ is *true*.
+          1. Let _precedingArgs_ be ? ArgumentListEvaluation of |ArgumentList| with argument *true*.
+          1. Let _arg_ be an ArgumentPlaceholder Record { [[Kind]]: ~ordinal~, [[Ordinal]]: RoundMVResult(MV of |DecimalIntegerLiteral|) }.
+          1. Return the list-concatenation of _precedingArgs_ and &laquo; _arg_ &raquo;.
+        </emu-alg>
+        <emu-grammar>ArgumentList : ArgumentList `,` `...`</emu-grammar>
+        <emu-alg>
+          1. Assert: _isPartial_ is *true*.
+          1. Let _precedingArgs_ be ? ArgumentListEvaluation of |ArgumentList| with argument *true*.
+          1. Let _arg_ be an ArgumentPlaceholder Record { [[Kind]]: ~rest~, [[Ordinal]]: -1 }.
+          1. Return the list-concatenation of _precedingArgs_ and &laquo; _arg_ &raquo;.
+        </emu-alg>
+        </ins>
+
+        <emu-grammar>TemplateLiteral : NoSubstitutionTemplate</emu-grammar>
+        <emu-alg>
+          1. <ins>Assert: _isPartial_ is *false*.</ins>
+          1. Let _templateLiteral_ be this |TemplateLiteral|.
+          1. Let _siteObj_ be GetTemplateObject(_templateLiteral_).
+          1. Return a List whose sole element is _siteObj_.
+        </emu-alg>
+        <emu-grammar>TemplateLiteral : SubstitutionTemplate</emu-grammar>
+        <emu-alg>
+          1. <ins>Assert: _isPartial_ is *false*.</ins>
+          1. Let _templateLiteral_ be this |TemplateLiteral|.
+          1. Let _siteObj_ be GetTemplateObject(_templateLiteral_).
+          1. Let _remaining_ be ? ArgumentListEvaluation of |SubstitutionTemplate|<ins> with argument *false*</ins>.
+          1. Return the list-concatenation of &laquo; _siteObj_ &raquo; and _remaining_.
+        </emu-alg>
+        <emu-grammar>SubstitutionTemplate : TemplateHead Expression TemplateSpans</emu-grammar>
+        <emu-alg>
+          1. <ins>Assert: _isPartial_ is *false*.</ins>
+          1. Let _firstSubRef_ be the result of evaluating |Expression|.
+          1. Let _firstSub_ be ? GetValue(_firstSubRef_).
+          1. Let _restSub_ be ? SubstitutionEvaluation of |TemplateSpans|.
+          1. Assert: _restSub_ is a possibly empty List.
+          1. Return the list-concatenation of &laquo; _firstSub_ &raquo; and _restSub_.
+        </emu-alg>
+      </emu-clause>
+    </emu-clause>
+  
+  </emu-clause>
+</emu-clause>
+
