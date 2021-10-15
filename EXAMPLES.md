@@ -1322,6 +1322,26 @@ const g = (
 )(((_receiver, _key) => [/*_callee*/ _receiver[_key], _receiver])(/*_receiver*/ o, /*_key*/ yield k));
 ```
 
+### `await f~()`
+
+> NOTE: This does *not* include an `await` as part of the partial application. `await f~()` is the same as `await (f~())`
+> which means that you would be awaiting a *function*, not the value it produces. Linters should like report this
+> as an incorrect usage.
+>
+> This example is included here for illustrative purposes.
+
+```js
+// source
+const g = await f~();
+
+// desugared
+const g = await (
+  function (_callee) {
+    return function () { return _callee(); };
+  }
+)(/*_callee*/ f);
+```
+
 ## Optional Chain
 
 The following examples illustrate the behavior of partial application with optional chaining.
