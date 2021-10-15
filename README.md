@@ -529,7 +529,7 @@ not actually difficult to read in most cases: `f~(?, a?.b ?? c)`.
 
 # Resources
 
-- [Overview Slides](https://github.com/tc39/proposal-partial-application/raw/master/docs/PartialApplication-tc39.pptx)
+- [Overview Slides](https://raw.githubusercontent.com/tc39/proposal-partial-application/main/docs/PartialApplication-tc39.pptx)
 
 # TODO
 
