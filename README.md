@@ -180,16 +180,16 @@ printCxx(1, 2, 3);                         // prints: 3, arg1, arg2
 ```
 
 By having ordinal placeholder arguments independent of the ordering for non-ordinal placeholder arguments, we
-avoid refactoring hazards due to the insertion a new ordinal placeholder into an existing partial application:
+avoid refactoring hazards due to the insertion a new ordinal placeholder into an existing partial application.
 
+_inserting an ordinal placeholder as the first argument:_
 ```patch
-+  // insert ordinal placeholder argument at beginning:
 -  const g = f~(?, ?, ?);                   // equivalent to: f~(?0, ?1, ?2)
 +  const g = f~(?2, ?, ?, ?);               // equivalent to: f~(?2, ?0, ?1, ?2)
 ```
 
+_inserting an ordinal placeholder between other placeholders:_
 ```patch
-+  // insert ordinal placeholder argument in middle:
 -  const g = f~(?, ?, ?);                   // equivalent to: f~(?0, ?1, ?2)
 +  const g = f~(?, ?, ?0, ?);               // equivalent to: f~(?0, ?1, ?0, ?2)
 ```
