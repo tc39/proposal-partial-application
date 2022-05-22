@@ -34,7 +34,7 @@ const addTen = x => add(x, 10);
 addTen(2); // 12
 ```
 
-However, there are several of limitations with these approaches:
+However, there are several limitations with these approaches:
 
 * `Function.prototype.bind` can only fix the leading arguments of a function.
 * `Function.prototype.bind` requires you explicitly specify the `this` receiver.
@@ -180,7 +180,7 @@ printCxx(1, 2, 3);                         // prints: 3, arg1, arg2
 ```
 
 By having ordinal placeholder arguments independent of the ordering for non-ordinal placeholder arguments, we
-avoid refactoring hazards due to the insertion a new ordinal placeholder into an existing partial application.
+avoid refactoring hazards due to the insertion of a new ordinal placeholder into an existing partial application.
 
 _inserting an ordinal placeholder as the first argument:_
 ```patch
@@ -510,7 +510,7 @@ not actually difficult to read in most cases: `f~(?, a?.b ?? c)`.
   one or more parameter bindings in a resulting _partially applied function_.
 - _Non-Ordinal Placeholder Argument_ &mdash; A _placeholder argument_ representing a single unapplied argument. _Non-ordinal placeholder 
   arguments_ are implicitly ordered sequentially from left to right.  
-  A _non-ordinal placeholder argument_ is denoted by a `?` token that takes up an entire an argument position.  
+  A _non-ordinal placeholder argument_ is denoted by a `?` token that takes up an entire argument position.  
   Example: `f~(?)`
 - _Ordinal Placeholder Argument_ &mdash; A _placeholder argument_ representing a single unapplied argument with a specified ordinal position
   in the parameter list of the resulting _partially applied function_.  
