@@ -157,7 +157,7 @@ allowing repeated references to the same argument value:
 
 ```js
 const add = (x, y) => x + y;
-const dup = add(?0, ?0);
+const dup = add~(?0, ?0);
 console.log(dup(3));                       // prints: 6
 ```
 
